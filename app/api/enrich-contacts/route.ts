@@ -96,14 +96,26 @@ export async function GET(req: NextRequest) {
       linkedinUrl = `https://www.linkedin.com/company/${slug}`;
     }
 
+    // Map phones to array of strings for existing client detail page compatibility
+    const phonesList = Array.isArray(backendData.phones)
+      ? backendData.phones.map((p: any) => typeof p === 'object' ? p.number : p)
+      : [];
+
     return NextResponse.json({
       emails: backendData.emails,
       stakeholder: backendData.stakeholder,
       context_snippet: backendData.context_snippet,
       email_source_context: backendData.email_source_context || 'Extracted from page content',
-      phones: backendData.phones || [], // Clean empty array for compatibility
-      linkedinUrl,
-      found: backendData.found || backendData.emails.length > 0
+      phones: phonesList,
+      
+      // New objects mapping for frontend flexibility
+      primary_email: backendData.primary_email || (backendData.emails?.[0] ?? null),
+      all_emails: backendData.all_emails || [],
+      raw_phones: backendData.phones || [],
+      linkedin_company: backendData.linkedin_company || linkedinUrl,
+      
+      linkedinUrl: backendData.linkedin_company || linkedinUrl,
+      found: backendData.found || (backendData.emails && backendData.emails.length > 0)
     });
 
   } catch (err) {
