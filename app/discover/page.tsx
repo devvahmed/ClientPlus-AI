@@ -282,22 +282,32 @@ function CompanyCard({
       {/* Header: logo + name + badge */}
       <div className="flex justify-between items-start">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <CompanyLogo logoUrl={company.logoUrl} domain={company.domain} initials={company.initials} colorClass={logoColor(index)} size={48} />
+          <CompanyLogo
+            logoUrl={company.logoUrl || `https://logo.clearbit.com/${company.domain || 'example.com'}`}
+            domain={company.domain || company.displayUrl || 'unknown'}
+            initials={company.initials || (company.name || 'Co').slice(0, 2).toUpperCase()}
+            colorClass={logoColor(index)}
+            size={48}
+          />
           <div className="min-w-0 flex-1">
-            <h3 className="text-[15px] font-semibold text-on-surface truncate">{company.name}</h3>
-            <p className="text-[12px] text-secondary truncate">{company.industry} · {company.country}</p>
+            <h3 className="text-[15px] font-semibold text-on-surface truncate">
+              {company.name || company.domain || 'Unknown Company'}
+            </h3>
+            <p className="text-[12px] text-secondary truncate">
+              {company.industry || 'Industry'} · {company.country || 'Global'}
+            </p>
           </div>
         </div>
         <span className={`px-2 py-1 rounded-lg text-[11px] font-semibold shrink-0 ml-2 ${fitBadgeColor[company.trustStatus] ?? fitBadgeColor['Neutral']}`}>
-          {company.trustStatus}
+          {company.trustStatus || 'High Fit'}
         </span>
       </div>
 
-      {/* Snippet (Relevance rationale) */}
-      {company.snippet && (
+      {/* Snippet */}
+      {(company.snippet || company.description) && (
         <div className="h-[76px] overflow-y-auto pr-1 hover:scrollbar-visible custom-scrollbar">
           <p className="text-[12px] text-on-surface leading-relaxed bg-blue-50/50 p-2.5 rounded-xl border border-blue-100/50 min-h-full">
-            {company.snippet}
+            {company.snippet || company.description}
           </p>
         </div>
       )}
@@ -324,13 +334,13 @@ function CompanyCard({
       <div>
         <div className="flex justify-between text-[12px] text-secondary mb-1.5">
           <span>AI Fit Match</span>
-          <span className="font-semibold text-on-surface">{company.trustScore}%</span>
+          <span className="font-semibold text-on-surface">{company.trustScore ?? 80}%</span>
         </div>
         <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
           <motion.div
-            className={`${trustBarColor(company.trustScore)} h-full rounded-full`}
+            className={`${trustBarColor(company.trustScore ?? 80)} h-full rounded-full`}
             initial={{ width: 0 }}
-            animate={{ width: `${company.trustScore}%` }}
+            animate={{ width: `${company.trustScore ?? 80}%` }}
             transition={{ delay: index * 0.06 + 0.3, duration: 0.8, ease: 'easeOut' }}
           />
         </div>
@@ -339,17 +349,17 @@ function CompanyCard({
       {/* Meta row */}
       <div className="flex items-center justify-between text-[12px] text-secondary">
         <a
-          href={company.website}
+          href={company.website || `https://${company.domain}`}
           target="_blank"
           rel="noreferrer"
           className="flex items-center gap-1 hover:text-primary transition-colors truncate max-w-[160px]"
         >
           <span className="material-symbols-outlined text-[13px]">language</span>
-          <span className="truncate">{company.displayUrl}</span>
+          <span className="truncate">{company.displayUrl || company.domain || company.website}</span>
         </a>
         <span className="flex items-center gap-1 shrink-0">
           <span className="material-symbols-outlined text-[13px]">location_on</span>
-          {company.country}
+          {company.country || 'Global'}
         </span>
       </div>
 
@@ -369,7 +379,6 @@ function CompanyCard({
           {company.saved ? 'Saved' : 'Save to Clients'}
         </motion.button>
 
-        {/* AI Analyze */}
         <motion.button
           whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
           onClick={() => onAnalyze(company)}
@@ -379,10 +388,9 @@ function CompanyCard({
           <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
         </motion.button>
 
-        {/* Open website */}
         <motion.a
           whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
-          href={company.website}
+          href={company.website || `https://${company.domain}`}
           target="_blank"
           rel="noreferrer"
           title="Open website"
@@ -396,6 +404,7 @@ function CompanyCard({
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
+
 export default function DiscoverPage() {
   const [keyword, setKeyword] = useState('');
   const [country, setCountry] = useState('All Countries');
@@ -434,28 +443,42 @@ export default function DiscoverPage() {
         keyword: keyword.trim(),
         country,
         minTrustScore: String(minTrust),
-        pageno: String(nextPage)
+        pageno: String(nextPage),
       });
       const res = await fetch(`/api/discover-companies?${params}`);
       const data = await res.json();
-      if (!res.ok) { if (data.fix) setErrorFix(data.fix); throw new Error(data.error || 'Search failed'); }
-      
-      const newCompanies = data.companies ?? [];
+
+      if (!res.ok) {
+        if (data.fix) setErrorFix(data.fix);
+        throw new Error(data.error || 'Search failed');
+      }
+
+      // ── Robust response-key normalizer ─────────────────────────────────────
+      // Handles { companies: [] }, { results: [] }, or a bare array.
+      let rawCompanies: Company[] = [];
+      if (Array.isArray(data)) {
+        rawCompanies = data;
+      } else if (data && Array.isArray(data.companies)) {
+        rawCompanies = data.companies;
+      } else if (data && Array.isArray(data.results)) {
+        rawCompanies = data.results;
+      }
+
+      // ── Client-side minTrust filter ─────────────────────────────────────────
+      const newCompanies: Company[] = minTrust > 0
+        ? rawCompanies.filter((c) => (c.trustScore ?? 0) >= minTrust)
+        : rawCompanies;
+
+      setCompanies(newCompanies);
       if (isSubsequent) {
-        setCompanies(prev => {
-          const existingUrls = new Set(prev.map(c => c.website.toLowerCase().replace(/\/$/, '')));
-          const filteredNew = newCompanies.filter((c: Company) => !existingUrls.has(c.website.toLowerCase().replace(/\/$/, '')));
-          return [...prev, ...filteredNew];
-        });
         setCurrentPage(nextPage);
       } else {
-        setCompanies(newCompanies);
         setCurrentPage(1);
         setLastKeyword(keyword.trim());
         setLastCountry(country);
       }
-      
-      setQuery(data.query ?? '');
+
+      setQuery(data.query ?? `${keyword.trim()} companies`);
       setHasSearched(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed. Please try again.');
@@ -463,6 +486,7 @@ export default function DiscoverPage() {
       setLoading(false);
     }
   }, [keyword, country, minTrust, lastKeyword, lastCountry, currentPage]);
+
 
   const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === 'Enter') handleSearch(); };
 
