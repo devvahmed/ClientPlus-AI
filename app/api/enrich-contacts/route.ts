@@ -8,8 +8,10 @@ interface SearXNGResult {
 
 interface BackendEnrichResponse {
   emails: string[];
+  phones?: string[];
   stakeholder: string;
   context_snippet: string;
+  email_source_context?: string;
   found: boolean;
 }
 

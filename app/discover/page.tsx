@@ -5,6 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+export interface ContactSource {
+  url?: string;
+  page?: string;
+  label?: string;
+  context?: string;
+}
+
 interface Company {
   id: string;
   name: string;
@@ -20,6 +27,7 @@ interface Company {
   logoUrl: string;
   email?: string;
   phone?: string;
+  contactSource?: ContactSource;
   linkedin?: string;
   description?: string;
   saved?: boolean;
@@ -312,23 +320,64 @@ function CompanyCard({
         </div>
       )}
 
-      {/* Contact details row */}
-      {(company.email || company.phone) && (
-        <div className="flex flex-col gap-1.5 bg-surface-container-low rounded-xl px-3 py-2">
-          {company.email && (
-            <div className="flex items-center gap-1.5 text-[12px] text-on-surface">
-              <span className="material-symbols-outlined text-[13px] text-primary flex-shrink-0">email</span>
-              <a href={`mailto:${company.email}`} className="truncate hover:text-primary transition-colors">{company.email}</a>
+      {/* Contact details & Source Reference */}
+      <div className="flex flex-col gap-1.5 bg-surface-container-low rounded-xl px-3 py-2.5 border border-outline-variant/40">
+        {/* Priority 1: Email */}
+        {company.email ? (
+          <div className="flex items-center justify-between text-[12px] text-on-surface">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="material-symbols-outlined text-[14px] text-primary flex-shrink-0">email</span>
+              <a href={`mailto:${company.email}`} className="font-medium text-primary hover:underline truncate">{company.email}</a>
             </div>
-          )}
-          {company.phone && (
-            <div className="flex items-center gap-1.5 text-[12px] text-on-surface">
-              <span className="material-symbols-outlined text-[13px] text-primary flex-shrink-0">call</span>
-              <a href={`tel:${company.phone}`} className="hover:text-primary transition-colors">{company.phone}</a>
-            </div>
-          )}
-        </div>
-      )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-[11px] text-secondary italic">
+            <span className="material-symbols-outlined text-[13px] text-outline flex-shrink-0">mail_lock</span>
+            <span>No email listed on main pages</span>
+          </div>
+        )}
+
+        {/* Priority 2: Phone */}
+        {company.phone && (
+          <div className="flex items-center gap-1.5 text-[12px] text-on-surface">
+            <span className="material-symbols-outlined text-[14px] text-primary flex-shrink-0">call</span>
+            <a href={`tel:${company.phone}`} className="hover:text-primary transition-colors">{company.phone}</a>
+          </div>
+        )}
+
+        {/* Priority 3: LinkedIn / Direct Social Contact */}
+        {company.linkedin && (
+          <div className="flex items-center gap-1.5 text-[12px] text-on-surface">
+            <span className="material-symbols-outlined text-[14px] text-blue-600 flex-shrink-0">link</span>
+            <a href={company.linkedin} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate font-medium">LinkedIn Profile</a>
+          </div>
+        )}
+
+        {/* Source Reference Badge & Link */}
+        {company.contactSource?.url ? (
+          <div className="pt-1.5 mt-1 border-t border-outline-variant/40 flex items-center justify-between text-[11px]">
+            <span className="text-secondary font-medium flex items-center gap-1">
+              <span className="material-symbols-outlined text-[12px] text-emerald-600">verified</span>
+              Source:
+            </span>
+            <a
+              href={company.contactSource.url}
+              target="_blank"
+              rel="noreferrer"
+              title={company.contactSource.context || 'Verified from site'}
+              className="text-primary font-medium hover:underline truncate max-w-[190px] flex items-center gap-0.5"
+            >
+              {company.contactSource.page || 'Contact Page'}
+              <span className="material-symbols-outlined text-[11px]">open_in_new</span>
+            </a>
+          </div>
+        ) : (
+          <div className="pt-1 mt-1 border-t border-outline-variant/30 flex items-center justify-between text-[11px] text-secondary">
+            <span>Crawled:</span>
+            <span className="text-[10px] bg-surface-container px-1.5 py-0.5 rounded font-mono">Homepage & /contact</span>
+          </div>
+        )}
+      </div>
 
       {/* Trust Score */}
       <div>
@@ -428,14 +477,17 @@ export default function DiscoverPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const handleSearch = useCallback(async () => {
+  const handleSearch = useCallback(async (forceReset = false) => {
     if (!keyword.trim()) { setError('Please enter an industry or keyword to search.'); return; }
     setLoading(true); setError(null); setErrorFix(null);
     
     let nextPage = 1;
-    const isSubsequent = keyword.trim() === lastKeyword && country === lastCountry;
+    const isSubsequent = !forceReset && keyword.trim() === lastKeyword && country === lastCountry;
     if (isSubsequent) {
       nextPage = currentPage + 1;
+    } else {
+      // Reset local page state on fresh search or new keyword/country
+      setCurrentPage(0);
     }
 
     try {
@@ -444,6 +496,7 @@ export default function DiscoverPage() {
         country,
         minTrustScore: String(minTrust),
         pageno: String(nextPage),
+        ...(forceReset ? { clearCache: 'true' } : {}),
       });
       const res = await fetch(`/api/discover-companies?${params}`);
       const data = await res.json();
@@ -580,17 +633,28 @@ export default function DiscoverPage() {
               <span className="material-symbols-outlined absolute right-3 top-2.5 text-secondary pointer-events-none text-[18px]">expand_more</span>
             </div>
           </div>
-          {/* Button */}
-          <motion.button
-            whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-            onClick={handleSearch} disabled={loading}
-            className="bg-primary text-white font-semibold text-[15px] px-6 py-2 h-10 rounded-xl hover:bg-primary-container transition-colors shadow-card flex items-center gap-2 whitespace-nowrap shrink-0 disabled:opacity-70"
-          >
-            <span className={`material-symbols-outlined text-[18px] ${loading ? 'animate-spin' : ''}`}>
-              {loading ? 'progress_activity' : 'search'}
-            </span>
-            {loading ? 'Searching...' : 'Search Companies'}
-          </motion.button>
+          {/* Buttons */}
+          <div className="flex gap-2 shrink-0">
+            <motion.button
+              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={() => handleSearch(false)} disabled={loading}
+              className="bg-primary text-white font-semibold text-[15px] px-6 py-2 h-10 rounded-xl hover:bg-primary-container transition-colors shadow-card flex items-center gap-2 whitespace-nowrap disabled:opacity-70"
+            >
+              <span className={`material-symbols-outlined text-[18px] ${loading ? 'animate-spin' : ''}`}>
+                {loading ? 'progress_activity' : 'search'}
+              </span>
+              {loading ? 'Searching...' : 'Search Companies'}
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={() => handleSearch(true)} disabled={loading}
+              title="Clear cache and get fresh results from page 1"
+              className="bg-surface border border-outline-variant text-on-surface font-semibold text-[15px] px-4 py-2 h-10 rounded-xl hover:bg-surface-variant transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-70"
+            >
+              <span className="material-symbols-outlined text-[18px]">refresh</span>
+              Fresh
+            </motion.button>
+          </div>
         </div>
 
         {/* Error */}

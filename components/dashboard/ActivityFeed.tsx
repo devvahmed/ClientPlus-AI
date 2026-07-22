@@ -57,7 +57,7 @@ const containerVariants = {
 
 const itemVariants = {
   hidden: { opacity: 0, x: 12 },
-  visible: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 300, damping: 30 } },
+  visible: { opacity: 1, x: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 30 } },
 };
 
 export default function ActivityFeed() {
