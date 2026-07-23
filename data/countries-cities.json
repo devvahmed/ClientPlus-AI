@@ -1,0 +1,986 @@
+[
+  {
+    "country": "Afghanistan",
+    "code": "AF",
+    "cities": ["Kabul", "Kandahar", "Herat", "Mazar-i-Sharif", "Jalalabad", "Kunduz", "Ghazni", "Balkh"]
+  },
+  {
+    "country": "Albania",
+    "code": "AL",
+    "cities": ["Tirana", "Durrës", "Vlorë", "Shkodër", "Fier", "Korçë", "Elbasan", "Gjirokastër"]
+  },
+  {
+    "country": "Algeria",
+    "code": "DZ",
+    "cities": ["Algiers", "Oran", "Constantine", "Annaba", "Blida", "Batna", "Sétif", "Sidi Bel Abbès"]
+  },
+  {
+    "country": "Andorra",
+    "code": "AD",
+    "cities": ["Andorra la Vella", "Escaldes-Engordany", "Encamp", "Sant Julià de Lòria", "La Massana", "Canillo", "Ordino"]
+  },
+  {
+    "country": "Angola",
+    "code": "AO",
+    "cities": ["Luanda", "Lubango", "Huambo", "Benguela", "Cabinda", "Lobito", "Malanje", "Namibe"]
+  },
+  {
+    "country": "Antigua and Barbuda",
+    "code": "AG",
+    "cities": ["St. John's", "All Saints", "Liberta", "Potters Village", "Bolans", "English Harbour"]
+  },
+  {
+    "country": "Argentina",
+    "code": "AR",
+    "cities": ["Buenos Aires", "Córdoba", "Rosario", "Mendoza", "La Plata", "San Miguel de Tucumán", "Mar del Plata", "Salta", "Santa Fe"]
+  },
+  {
+    "country": "Armenia",
+    "code": "AM",
+    "cities": ["Yerevan", "Gyumri", "Vanadzor", "Vagharshapat", "Hrazdan", "Abovyan", "Kapan", "Armavir"]
+  },
+  {
+    "country": "Australia",
+    "code": "AU",
+    "cities": ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Gold Coast", "Canberra", "Newcastle", "Sunshine Coast"]
+  },
+  {
+    "country": "Austria",
+    "code": "AT",
+    "cities": ["Vienna", "Graz", "Linz", "Salzburg", "Innsbruck", "Klagenfurt", "Villach", "Wels"]
+  },
+  {
+    "country": "Azerbaijan",
+    "code": "AZ",
+    "cities": ["Baku", "Ganja", "Sumqayit", "Mingachevir", "Nakhchivan", "Shirvan", "Shaki", "Yevlakh"]
+  },
+  {
+    "country": "Bahamas",
+    "code": "BS",
+    "cities": ["Nassau", "Freeport", "West End", "Cooper's Town", "Marsh Harbour", "Freetown"]
+  },
+  {
+    "country": "Bahrain",
+    "code": "BH",
+    "cities": ["Manama", "Riffa", "Muharraq", "Hamad Town", "A'ali", "Isa Town", "Sitra", "Budaiya"]
+  },
+  {
+    "country": "Bangladesh",
+    "code": "BD",
+    "cities": ["Dhaka", "Chittagong", "Khulna", "Rajshahi", "Sylhet", "Barisal", "Rangpur", "Comilla", "Narayanganj"]
+  },
+  {
+    "country": "Barbados",
+    "code": "BB",
+    "cities": ["Bridgetown", "Speightstown", "Oistins", "Holetown", "Bathsheba", "Crane"]
+  },
+  {
+    "country": "Belarus",
+    "code": "BY",
+    "cities": ["Minsk", "Gomel", "Mogilev", "Vitebsk", "Grodno", "Brest", "Bobruisk", "Baranovichi"]
+  },
+  {
+    "country": "Belgium",
+    "code": "BE",
+    "cities": ["Brussels", "Antwerp", "Ghent", "Charleroi", "Liège", "Bruges", "Namur", "Leuven"]
+  },
+  {
+    "country": "Belize",
+    "code": "BZ",
+    "cities": ["Belize City", "Belmopan", "San Ignacio", "Orange Walk Town", "San Pedro", "Corozal Town"]
+  },
+  {
+    "country": "Benin",
+    "code": "BJ",
+    "cities": ["Cotonou", "Porto-Novo", "Parakou", "Djougou", "Bohicon", "Kandi", "Abomey", "Natitingou"]
+  },
+  {
+    "country": "Bhutan",
+    "code": "BT",
+    "cities": ["Thimphu", "Phuntsholing", "Paro", "Gelephu", "Wangdue Phodrang", "Punakha", "Samdrup Jongkhar"]
+  },
+  {
+    "country": "Bolivia",
+    "code": "BO",
+    "cities": ["Santa Cruz de la Sierra", "El Alto", "La Paz", "Cochabamba", "Oruro", "Sucre", "Tarija", "Potosí"]
+  },
+  {
+    "country": "Bosnia and Herzegovina",
+    "code": "BA",
+    "cities": ["Sarajevo", "Banja Luka", "Tuzla", "Zenica", "Mostar", "Bijeljina", "Brčko", "Bihać"]
+  },
+  {
+    "country": "Botswana",
+    "code": "BW",
+    "cities": ["Gaborone", "Francistown", "Molepolole", "Maun", "Serowe", "Selibe Phikwe", "Kanye", "Mahalapye"]
+  },
+  {
+    "country": "Brazil",
+    "code": "BR",
+    "cities": ["São Paulo", "Rio de Janeiro", "Brasília", "Salvador", "Fortaleza", "Belo Horizonte", "Manaus", "Curitiba", "Porto Alegre", "Recife"]
+  },
+  {
+    "country": "Brunei",
+    "code": "BN",
+    "cities": ["Bandar Seri Begawan", "Kuala Belait", "Seria", "Tutong", "Bangar", "Jerudong"]
+  },
+  {
+    "country": "Bulgaria",
+    "code": "BG",
+    "cities": ["Sofia", "Plovdiv", "Varna", "Burgas", "Ruse", "Stara Zagora", "Pleven", "Sliven"]
+  },
+  {
+    "country": "Burkina Faso",
+    "code": "BF",
+    "cities": ["Ouagadougou", "Bobo-Dioulasso", "Koudougou", "Ouahigouya", "Banfora", "Kaya", "Dédougou", "Tenkodogo"]
+  },
+  {
+    "country": "Burundi",
+    "code": "BI",
+    "cities": ["Gitega", "Bujumbura", "Ngozi", "Rumonge", "Kayanza", "Bururi", "Muramvya"]
+  },
+  {
+    "country": "Cabo Verde",
+    "code": "CV",
+    "cities": ["Praia", "Mindelo", "Espargos", "Assomada", "Porto Novo", "Tarrafal", "Santa Maria"]
+  },
+  {
+    "country": "Cambodia",
+    "code": "KH",
+    "cities": ["Phnom Penh", "Siem Reap", "Battambang", "Sihanoukville", "Poipet", "Kampong Cham", "Kampot", "Ta Khmao"]
+  },
+  {
+    "country": "Cameroon",
+    "code": "CM",
+    "cities": ["Douala", "Yaoundé", "Bamenda", "Garoua", "Maroua", "Bafoussam", "Ngaoundéré", "Kumba"]
+  },
+  {
+    "country": "Canada",
+    "code": "CA",
+    "cities": ["Toronto", "Montreal", "Vancouver", "Calgary", "Edmonton", "Ottawa", "Winnipeg", "Quebec City", "Halifax"]
+  },
+  {
+    "country": "Central African Republic",
+    "code": "CF",
+    "cities": ["Bangui", "Bimbo", "Berbérati", "Carnot", "Bambari", "Bouar", "Bossangoa"]
+  },
+  {
+    "country": "Chad",
+    "code": "TD",
+    "cities": ["N'Djamena", "Moundou", "Sarh", "Abéché", "Kélo", "Koumra", "Pala", "Am Timan"]
+  },
+  {
+    "country": "Chile",
+    "code": "CL",
+    "cities": ["Santiago", "Valparaíso", "Concepción", "La Serena", "Antofagasta", "Temuco", "Rancagua", "Talca", "Puerto Montt"]
+  },
+  {
+    "country": "China",
+    "code": "CN",
+    "cities": ["Shanghai", "Beijing", "Shenzhen", "Guangzhou", "Chengdu", "Chongqing", "Hangzhou", "Wuhan", "Xi'an", "Nanjing"]
+  },
+  {
+    "country": "Colombia",
+    "code": "CO",
+    "cities": ["Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena", "Bucaramanga", "Cúcuta", "Pereira", "Santa Marta"]
+  },
+  {
+    "country": "Comoros",
+    "code": "KM",
+    "cities": ["Moroni", "Mutsamudu", "Fomboni", "Domoni", "Mirontsi", "Sima"]
+  },
+  {
+    "country": "Congo (Brazzaville)",
+    "code": "CG",
+    "cities": ["Brazzaville", "Pointe-Noire", "Dolisie", "Nkayi", "Kindamba", "Impfondo", "Ouesso"]
+  },
+  {
+    "country": "Congo (Kinshasa)",
+    "code": "CD",
+    "cities": ["Kinshasa", "Lubumbashi", "Mbuji-Mayi", "Kananga", "Kisangani", "Goma", "Bukavu", "Tshikapa"]
+  },
+  {
+    "country": "Costa Rica",
+    "code": "CR",
+    "cities": ["San José", "Alajuela", "Cartago", "Heredia", "Liberia", "Puntarenas", "Limón", "Pérez Zeledón"]
+  },
+  {
+    "country": "Croatia",
+    "code": "HR",
+    "cities": ["Zagreb", "Split", "Rijeka", "Osijek", "Zadar", "Pula", "Slavonski Brod", "Karlovac", "Dubrovnik"]
+  },
+  {
+    "country": "Cuba",
+    "code": "CU",
+    "cities": ["Havana", "Santiago de Cuba", "Camagüey", "Holguín", "Guantánamo", "Santa Clara", "Las Tunas", "Bayamo"]
+  },
+  {
+    "country": "Cyprus",
+    "code": "CY",
+    "cities": ["Nicosia", "Limassol", "Larnaca", "Paphos", "Famagusta", "Kyrenia", "Paralimni"]
+  },
+  {
+    "country": "Czech Republic",
+    "code": "CZ",
+    "cities": ["Prague", "Brno", "Ostrava", "Plzeň", "Liberec", "Olomouc", "České Budějovice", "Hradec Králové"]
+  },
+  {
+    "country": "Denmark",
+    "code": "DK",
+    "cities": ["Copenhagen", "Aarhus", "Odense", "Aalborg", "Esbjerg", "Randers", "Kolding", "Horsens"]
+  },
+  {
+    "country": "Djibouti",
+    "code": "DJ",
+    "cities": ["Djibouti", "Ali Sabieh", "Tajoura", "Dikhil", "Obock", "Arta"]
+  },
+  {
+    "country": "Dominica",
+    "code": "DM",
+    "cities": ["Roseau", "Portsmouth", "Marigot", "Berekua", "Mahaut", "Grand Bay"]
+  },
+  {
+    "country": "Dominican Republic",
+    "code": "DO",
+    "cities": ["Santo Domingo", "Santiago de los Caballeros", "Santo Domingo Este", "San Pedro de Macorís", "La Romana", "Bella Vista", "San Cristóbal"]
+  },
+  {
+    "country": "East Timor",
+    "code": "TL",
+    "cities": ["Dili", "Dare", "Baucau", "Maliana", "Suai", "Liquiçá", "Same"]
+  },
+  {
+    "country": "Ecuador",
+    "code": "EC",
+    "cities": ["Guayaquil", "Quito", "Cuenca", "Santo Domingo", "Machala", "Manta", "Portoviejo", "Ambato"]
+  },
+  {
+    "country": "Egypt",
+    "code": "EG",
+    "cities": ["Cairo", "Alexandria", "Giza", "Shubra El Kheima", "Port Said", "Suez", "Mansoura", "Luxor", "Tanta"]
+  },
+  {
+    "country": "El Salvador",
+    "code": "SV",
+    "cities": ["San Salvador", "Santa Ana", "Soyapango", "San Miguel", "Santa Tecla", "Mejicanos", "Apopa", "Delgado"]
+  },
+  {
+    "country": "Equatorial Guinea",
+    "code": "GQ",
+    "cities": ["Malabo", "Bata", "Ebebiyín", "Oyala", "Aconibe", "Añisoc", "Luba"]
+  },
+  {
+    "country": "Eritrea",
+    "code": "ER",
+    "cities": ["Asmara", "Keren", "Massawa", "Assab", "Mendefera", "Barentu", "Adi Keyh"]
+  },
+  {
+    "country": "Estonia",
+    "code": "EE",
+    "cities": ["Tallinn", "Tartu", "Narva", "Pärnu", "Kohtla-Järve", "Viljandi", "Rakvere", "Maardu"]
+  },
+  {
+    "country": "Eswatini",
+    "code": "SZ",
+    "cities": ["Mbabane", "Manzini", "Big Bend", "Malkerns", "Nhlangano", "Siteki", "Piggs Peak"]
+  },
+  {
+    "country": "Ethiopia",
+    "code": "ET",
+    "cities": ["Addis Ababa", "Gondar", "Mek'ele", "Adama", "Hawassa", "Dire Dawa", "Bahir Dar", "Jimma"]
+  },
+  {
+    "country": "Fiji",
+    "code": "FJ",
+    "cities": ["Suva", "Nasinu", "Laubasa", "Lautoka", "Nadi", "Nausori", "Ba", "Lami"]
+  },
+  {
+    "country": "Finland",
+    "code": "FI",
+    "cities": ["Helsinki", "Espoo", "Tampere", "Vantaa", "Oulu", "Turku", "Jyväskylä", "Lahti"]
+  },
+  {
+    "country": "France",
+    "code": "FR",
+    "cities": ["Paris", "Marseille", "Lyon", "Toulouse", "Nice", "Nantes", "Montpellier", "Strasbourg", "Bordeaux", "Lille"]
+  },
+  {
+    "country": "Gabon",
+    "code": "GA",
+    "cities": ["Libreville", "Port-Gentil", "Franceville", "Oyem", "Moanda", "Mouila", "Lambaréné", "Tchibanga"]
+  },
+  {
+    "country": "Gambia",
+    "code": "GM",
+    "cities": ["Serekunda", "Brikama", "Bakau", "Banjul", "Farafenni", "Lamin", "Nema Kunku", "Sukuta"]
+  },
+  {
+    "country": "Georgia",
+    "code": "GE",
+    "cities": ["Tbilisi", "Batumi", "Kutaisi", "Rustavi", "Gori", "Zugdidi", "Poti", "Khashuri"]
+  },
+  {
+    "country": "Germany",
+    "code": "DE",
+    "cities": ["Berlin", "Hamburg", "Munich", "Cologne", "Frankfurt", "Stuttgart", "Düsseldorf", "Leipzig", "Dortmund", "Essen"]
+  },
+  {
+    "country": "Ghana",
+    "code": "GH",
+    "cities": ["Accra", "Kumasi", "Tamale", "Sekondi-Takoradi", "Ashaiman", "Sunyani", "Cape Coast", "Obuasi"]
+  },
+  {
+    "country": "Greece",
+    "code": "GR",
+    "cities": ["Athens", "Thessaloniki", "Patras", "Heraklion", "Larissa", "Volos", "Ioannina", "Trikala"]
+  },
+  {
+    "country": "Grenada",
+    "code": "GD",
+    "cities": ["St. George's", "Gouyave", "Grenville", "Victoria", "Saint David's", "Hillsborough"]
+  },
+  {
+    "country": "Guatemala",
+    "code": "GT",
+    "cities": ["Guatemala City", "Mixco", "Villa Nueva", "Quetzaltenango", "San Miguel Petapa", "Escuintla", "San Juan Sacatepéquez"]
+  },
+  {
+    "country": "Guinea",
+    "code": "GN",
+    "cities": ["Conakry", "Nzérékoré", "Kankan", "Kindia", "Labé", "Kissidougou", "Guéckédou", "Mamou"]
+  },
+  {
+    "country": "Guinea-Bissau",
+    "code": "GW",
+    "cities": ["Bissau", "Bafatá", "Gabú", "Bissora", "Bolama", "Cacheu", "Buba"]
+  },
+  {
+    "country": "Guyana",
+    "code": "GY",
+    "cities": ["Georgetown", "Linden", "New Amsterdam", "Anna Regina", "Bartica", "Skeldon", "Rosignol"]
+  },
+  {
+    "country": "Haiti",
+    "code": "HT",
+    "cities": ["Port-au-Prince", "Carrefour", "Delmas", "Cap-Haïtien", "Cité Soleil", "Gonaïves", "Saint-Marc"]
+  },
+  {
+    "country": "Honduras",
+    "code": "HN",
+    "cities": ["Tegucigalpa", "San Pedro Sula", "Choloma", "La Ceiba", "El Progreso", "Villanueva", "Comayagua", "Choluteca"]
+  },
+  {
+    "country": "Hungary",
+    "code": "HU",
+    "cities": ["Budapest", "Debrecen", "Szeged", "Miskolc", "Pécs", "Győr", "Nyíregyháza", "Kecskemét"]
+  },
+  {
+    "country": "Iceland",
+    "code": "IS",
+    "cities": ["Reykjavík", "Kópavogur", "Hafnarfjörður", "Akureyri", "Garðabær", "Mosfellsbær", "Árborg", "Akranes"]
+  },
+  {
+    "country": "India",
+    "code": "IN",
+    "cities": ["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Ahmedabad", "Chennai", "Kolkata", "Surat", "Pune", "Jaipur"]
+  },
+  {
+    "country": "Indonesia",
+    "code": "ID",
+    "cities": ["Jakarta", "Surabaya", "Bandung", "Bekasi", "Medan", "Tangerang", "Depok", "Semarang", "Palembang"]
+  },
+  {
+    "country": "Iran",
+    "code": "IR",
+    "cities": ["Tehran", "Mashhad", "Isfahan", "Karaj", "Shiraz", "Tabriz", "Qom", "Ahvaz"]
+  },
+  {
+    "country": "Iraq",
+    "code": "IQ",
+    "cities": ["Baghdad", "Basra", "Mosul", "Erbil", "Abu Ghraib", "Sulaymaniyah", "Kirkuk", "Najaf"]
+  },
+  {
+    "country": "Ireland",
+    "code": "IE",
+    "cities": ["Dublin", "Cork", "Limerick", "Galway", "Waterford", "Drogheda", "Dundalk", "Swords"]
+  },
+  {
+    "country": "Israel",
+    "code": "IL",
+    "cities": ["Jerusalem", "Tel Aviv", "Haifa", "Rishon LeZion", "Petah Tikva", "Ashdod", "Netanya", "Beer Sheva"]
+  },
+  {
+    "country": "Italy",
+    "code": "IT",
+    "cities": ["Rome", "Milan", "Naples", "Turin", "Palermo", "Genoa", "Bologna", "Florence", "Bari", "Venice"]
+  },
+  {
+    "country": "Ivory Coast",
+    "code": "CI",
+    "cities": ["Abidjan", "Bouaké", "Yamoussoukro", "San-Pédro", "Korhogo", "Daloa", "Gagnoa", "Man"]
+  },
+  {
+    "country": "Jamaica",
+    "code": "JM",
+    "cities": ["Kingston", "Portmore", "Montego Bay", "Spanish Town", "Mandeville", "May Pen", "Ocho Rios"]
+  },
+  {
+    "country": "Japan",
+    "code": "JP",
+    "cities": ["Tokyo", "Yokohama", "Osaka", "Nagoya", "Sapporo", "Fukuoka", "Kobe", "Kyoto", "Kawasaki", "Saitama"]
+  },
+  {
+    "country": "Jordan",
+    "code": "JO",
+    "cities": ["Amman", "Zarqa", "Irbid", "Russeifa", "Sahab", "Ar-Ramtha", "Aqaba", "Mafraq"]
+  },
+  {
+    "country": "Kazakhstan",
+    "code": "KZ",
+    "cities": ["Almaty", "Astana", "Shymkent", "Karaganda", "Aktobe", "Taraz", "Pavlodar", "Ust-Kamenogorsk"]
+  },
+  {
+    "country": "Kenya",
+    "code": "KE",
+    "cities": ["Nairobi", "Mombasa", "Kisumu", "Nakuru", "Ruiru", "Eldoret", "Kikuyu", "Thika"]
+  },
+  {
+    "country": "Kiribati",
+    "code": "KI",
+    "cities": ["South Tarawa", "Betio", "Bairiki", "Taburao", "Theme", "Kiritimati"]
+  },
+  {
+    "country": "Kosovo",
+    "code": "XK",
+    "cities": ["Pristina", "Prizren", "Gjilan", "Peja", "Mitrovica", "Ferizaj", "Gjakova", "Vushtrri"]
+  },
+  {
+    "country": "Kuwait",
+    "code": "KW",
+    "cities": ["Kuwait City", "Hawalli", "Salmiya", "Sabah Al-Salem", "Al Farwaniyah", "Al Ahmadi", "Ar Rabiyah"]
+  },
+  {
+    "country": "Kyrgyzstan",
+    "code": "KG",
+    "cities": ["Bishkek", "Osh", "Jalal-Abad", "Karakol", "Tokmok", "Uzgen", "Balykchy", "Naryn"]
+  },
+  {
+    "country": "Laos",
+    "code": "LA",
+    "cities": ["Vientiane", "Savannakhet", "Pakse", "Luang Prabang", "Phonsavan", "Thakhek", "Muang Xay"]
+  },
+  {
+    "country": "Latvia",
+    "code": "LV",
+    "cities": ["Riga", "Daugavpils", "Liepāja", "Jelgava", "Jūrmala", "Ventspils", "Rēzekne", "Valmiera"]
+  },
+  {
+    "country": "Lebanon",
+    "code": "LB",
+    "cities": ["Beirut", "Tripoli", "Sidon", "Tyre", "Nabatieh", "Jounieh", "Zahlé", "Baabda"]
+  },
+  {
+    "country": "Lesotho",
+    "code": "LS",
+    "cities": ["Maseru", "Teyateyaneng", "Mafeteng", "Hlotse", "Mohale's Hoek", "Qacha's Nek", "Quthing"]
+  },
+  {
+    "country": "Liberia",
+    "code": "LR",
+    "cities": ["Monrovia", "Gbarnga", "Kakata", "Bensonville", "Harper", "Voinjama", "Buchanan", "Zwedru"]
+  },
+  {
+    "country": "Libya",
+    "code": "LY",
+    "cities": ["Tripoli", "Benghazi", "Misrata", "Bayda", "Zawiya", "Zliten", "Tobruk", "Sebha"]
+  },
+  {
+    "country": "Liechtenstein",
+    "code": "LI",
+    "cities": ["Vaduz", "Schaan", "Triesen", "Balzers", "Eschen", "Mauren", "Triesenberg"]
+  },
+  {
+    "country": "Lithuania",
+    "code": "LT",
+    "cities": ["Vilnius", "Kaunas", "Klaipėda", "Šiauliai", "Panevėžys", "Alytus", "Marijampolė", "Mažeikiai"]
+  },
+  {
+    "country": "Luxembourg",
+    "code": "LU",
+    "cities": ["Luxembourg City", "Esch-sur-Alzette", "Differdange", "Dudelange", "Ettelbruck", "Diekirch", "Wiltz"]
+  },
+  {
+    "country": "Madagascar",
+    "code": "MG",
+    "cities": ["Antananarivo", "Toamasina", "Antsirabe", "Fianarantsoa", "Mahajanga", "Toliara", "Antsiranana"]
+  },
+  {
+    "country": "Malawi",
+    "code": "MW",
+    "cities": ["Lilongwe", "Blantyre", "Mzuzu", "Zomba", "Kasungu", "Mangochi", "Karonga", "Salima"]
+  },
+  {
+    "country": "Malaysia",
+    "code": "MY",
+    "cities": ["Kuala Lumpur", "George Town", "Johor Bahru", "Ipoh", "Shah Alam", "Petaling Jaya", "Kota Kinabalu", "Kuching", "Malacca City"]
+  },
+  {
+    "country": "Maldives",
+    "code": "MV",
+    "cities": ["Malé", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Naifaru"]
+  },
+  {
+    "country": "Mali",
+    "code": "ML",
+    "cities": ["Bamako", "Sikasso", "Mopti", "Koutiala", "Kayes", "Ségou", "Gao", "Timbuktu"]
+  },
+  {
+    "country": "Malta",
+    "code": "MT",
+    "cities": ["Valletta", "Birkirkara", "Qormi", "Mosta", "Zabbar", "St. Paul's Bay", "Sliema", "Victoria"]
+  },
+  {
+    "country": "Marshall Islands",
+    "code": "MH",
+    "cities": ["Majuro", "Ebeye", "Arno", "Jabor", "Wotje", "Jaluit"]
+  },
+  {
+    "country": "Mauritania",
+    "code": "MR",
+    "cities": ["Nouakchott", "Nouadhibou", "Kiffa", "Mbagne", "Rosso", "Kaédi", "Zouérat"]
+  },
+  {
+    "country": "Mauritius",
+    "code": "MU",
+    "cities": ["Port Louis", "Beau Bassin-Rose Hill", "Vacoas-Phoenix", "Curepipe", "Quatre Bornes", "Triolet", "Goodlands"]
+  },
+  {
+    "country": "Mexico",
+    "code": "MX",
+    "cities": ["Mexico City", "Guadalajara", "Monterrey", "Puebla", "Tijuana", "León", "Juárez", "Cancún", "Querétaro", "Mérida"]
+  },
+  {
+    "country": "Micronesia",
+    "code": "FM",
+    "cities": ["Palikir", "Weno", "Tofol", "Kolonia", "Lelu"]
+  },
+  {
+    "country": "Moldova",
+    "code": "MD",
+    "cities": ["Chișinău", "Tiraspol", "Bălți", "Bender", "Rîbnița", "Ungheni", "Cahul", "Soroca"]
+  },
+  {
+    "country": "Monaco",
+    "code": "MC",
+    "cities": ["Monaco-Ville", "Monte Carlo", "La Condamine", "Fontvieille", "Le Portier"]
+  },
+  {
+    "country": "Mongolia",
+    "code": "MN",
+    "cities": ["Ulaanbaatar", "Erdenet", "Darkhan", "Choibalsan", "Mörön", "Nalaikh", "Bayankhongor"]
+  },
+  {
+    "country": "Montenegro",
+    "code": "ME",
+    "cities": ["Podgorica", "Nikšić", "Herceg Novi", "Pljevlja", "Budva", "Bar", "Bijelo Polje", "Cetinje"]
+  },
+  {
+    "country": "Morocco",
+    "code": "MA",
+    "cities": ["Casablanca", "Rabat", "Fes", "Tangier", "Marrakesh", "Agadir", "Meknes", "Oujda", "Kenitra"]
+  },
+  {
+    "country": "Mozambique",
+    "code": "MZ",
+    "cities": ["Maputo", "Matola", "Beira", "Nampula", "Chimoio", "Nacala", "Quelimane", "Tete"]
+  },
+  {
+    "country": "Myanmar",
+    "code": "MM",
+    "cities": ["Yangon", "Mandalay", "Naypyidaw", "Mawlamyine", "Bago", "Pathein", "Monywa", "Sittwe"]
+  },
+  {
+    "country": "Namibia",
+    "code": "NA",
+    "cities": ["Windhoek", "Walvis Bay", "Swakopmund", "Rundu", "Oshakati", "Rehoboth", "Katima Mulilo"]
+  },
+  {
+    "country": "Nauru",
+    "code": "NR",
+    "cities": ["Yaren", "Denigomodu", "Meneng", "Aiwo", "Boe"]
+  },
+  {
+    "country": "Nepal",
+    "code": "NP",
+    "cities": ["Kathmandu", "Pokhara", "Lalitpur", "Bharatpur", "Biratnagar", "Birgunj", "Dharan", "Janakpur"]
+  },
+  {
+    "country": "Netherlands",
+    "code": "NL",
+    "cities": ["Amsterdam", "Rotterdam", "The Hague", "Utrecht", "Eindhoven", "Tilburg", "Groningen", "Almere", "Breda"]
+  },
+  {
+    "country": "New Zealand",
+    "code": "NZ",
+    "cities": ["Auckland", "Wellington", "Christchurch", "Hamilton", "Tauranga", "Dunedin", "Palmerston North", "Napier"]
+  },
+  {
+    "country": "Nicaragua",
+    "code": "NI",
+    "cities": ["Managua", "León", "Masaya", "Matagalpa", "Chinandega", "Granada", "Estelí", "Tipitapa"]
+  },
+  {
+    "country": "Niger",
+    "code": "NE",
+    "cities": ["Niamey", "Zinder", "Maradi", "Agadez", "Tahoua", "Dosso", "Birni N'Konni", "Tessaoua"]
+  },
+  {
+    "country": "Nigeria",
+    "code": "NG",
+    "cities": ["Lagos", "Kano", "Ibadan", "Abuja", "Port Harcourt", "Benin City", "Kaduna", "Enugu", "Ilorin"]
+  },
+  {
+    "country": "North Korea",
+    "code": "KP",
+    "cities": ["Pyongyang", "Hamhung", "Chongjin", "Nampo", "Wonsan", "Sinuiju", "Tanchon", "Kaechon"]
+  },
+  {
+    "country": "North Macedonia",
+    "code": "MK",
+    "cities": ["Skopje", "Bitola", "Kumanovo", "Prilep", "Tetovo", "Ohrid", "Veles", "Štip"]
+  },
+  {
+    "country": "Norway",
+    "code": "NO",
+    "cities": ["Oslo", "Bergen", "Trondheim", "Stavanger", "Bærum", "Kristiansand", "Drammen", "Tromsø"]
+  },
+  {
+    "country": "Oman",
+    "code": "OM",
+    "cities": ["Muscat", "Seeb", "Salalah", "Bawshar", "Sohar", "As Suwayq", "Ibri", "Nizwa"]
+  },
+  {
+    "country": "Pakistan",
+    "code": "PK",
+    "cities": ["Karachi", "Lahore", "Faisalabad", "Rawalpindi", "Gujranwala", "Peshawar", "Multan", "Islamabad", "Quetta", "Sialkot"]
+  },
+  {
+    "country": "Palau",
+    "code": "PW",
+    "cities": ["Ngerulmud", "Koror", "Airai", "Meyuns", "Kloulklubed"]
+  },
+  {
+    "country": "Palestine",
+    "code": "PS",
+    "cities": ["Gaza City", "Hebron", "Nablus", "Khan Yunis", "Ramallah", "Jenin", "Bethlehem", "Tulkarm"]
+  },
+  {
+    "country": "Panama",
+    "code": "PA",
+    "cities": ["Panama City", "San Miguelito", "Tocumen", "David", "Arraiján", "Colón", "La Chorrera", "Santiago"]
+  },
+  {
+    "country": "Papua New Guinea",
+    "code": "PG",
+    "cities": ["Port Moresby", "Lae", "Arawa", "Mount Hagen", "Popondetta", "Madang", "Kokopo", "Goroka"]
+  },
+  {
+    "country": "Paraguay",
+    "code": "PY",
+    "cities": ["Asunción", "Ciudad del Este", "San Lorenzo", "Luque", "Capiatá", "Lambaré", "Fernando de la Mora", "Encarnación"]
+  },
+  {
+    "country": "Peru",
+    "code": "PE",
+    "cities": ["Lima", "Arequipa", "Trujillo", "Chiclayo", "Piura", "Iquitos", "Cusco", "Huancayo", "Chimbote"]
+  },
+  {
+    "country": "Philippines",
+    "code": "PH",
+    "cities": ["Quezon City", "Manila", "Davao City", "Caloocan", "Cebu City", "Zamboanga City", "Taguig", "Antipolo", "Cagayan de Oro"]
+  },
+  {
+    "country": "Poland",
+    "code": "PL",
+    "cities": ["Warsaw", "Kraków", "Wrocław", "Łódź", "Poznań", "Gdańsk", "Szczecin", "Bydgoszcz", "Lublin"]
+  },
+  {
+    "country": "Portugal",
+    "code": "PT",
+    "cities": ["Lisbon", "Porto", "Vila Nova de Gaia", "Amadora", "Braga", "Funchal", "Coimbra", "Setúbal", "Aveiro"]
+  },
+  {
+    "country": "Qatar",
+    "code": "QA",
+    "cities": ["Doha", "Al Rayyan", "Umm Salal Muhammad", "Al Wakrah", "Al Khor", "Ash Shahaniya", "Dukhan"]
+  },
+  {
+    "country": "Romania",
+    "code": "RO",
+    "cities": ["Bucharest", "Cluj-Napoca", "Timișoara", "Iași", "Constanța", "Craiova", "Brașov", "Galați"]
+  },
+  {
+    "country": "Russia",
+    "code": "RU",
+    "cities": ["Moscow", "Saint Petersburg", "Novosibirsk", "Yekaterinburg", "Kazan", "Nizhny Novgorod", "Chelyabinsk", "Samara", "Rostov-on-Don"]
+  },
+  {
+    "country": "Rwanda",
+    "code": "RW",
+    "cities": ["Kigali", "Butare", "Gitarama", "Ruhengeri", "Gisenyi", "Byumba", "Cyangugu"]
+  },
+  {
+    "country": "Saint Kitts and Nevis",
+    "code": "KN",
+    "cities": ["Basseterre", "Charlestown", "Sadlers", "Cayon", "Sandy Point Town"]
+  },
+  {
+    "country": "Saint Lucia",
+    "code": "LC",
+    "cities": ["Castries", "Gros Islet", "Vieux Fort", "Soufrière", "Dennery", "Micoud"]
+  },
+  {
+    "country": "Saint Vincent and the Grenadines",
+    "code": "VC",
+    "cities": ["Kingstown", "Georgetown", "Byera Village", "Barrouallie", "Chateaubelair"]
+  },
+  {
+    "country": "Samoa",
+    "code": "WS",
+    "cities": ["Apia", "Asau", "Mulifanua", "Afega", "Faleasiu", "Leulumoega"]
+  },
+  {
+    "country": "San Marino",
+    "code": "SM",
+    "cities": ["San Marino", "Dogana", "Borgo Maggiore", "Domagnano", "Fiorentino", "Serravalle"]
+  },
+  {
+    "country": "Sao Tome and Principe",
+    "code": "ST",
+    "cities": ["São Tomé", "Trindade", "Santana", "Neves", "Santo Amaro", "Pantufo"]
+  },
+  {
+    "country": "Saudi Arabia",
+    "code": "SA",
+    "cities": ["Riyadh", "Jeddah", "Mecca", "Medina", "Dammam", "Khobar", "Tabuk", "Buraidah", "Abha"]
+  },
+  {
+    "country": "Senegal",
+    "code": "SN",
+    "cities": ["Dakar", "Touba", "Thiès", "Rufisque", "Kaolack", "M'Bour", "Ziguinchor", "Saint-Louis"]
+  },
+  {
+    "country": "Serbia",
+    "code": "RS",
+    "cities": ["Belgrade", "Novi Sad", "Niš", "Kragujevac", "Subotica", "Zrenjanin", "Pančevo", "Čačak"]
+  },
+  {
+    "country": "Seychelles",
+    "code": "SC",
+    "cities": ["Victoria", "Anse Boileau", "Beau Vallon", "Takamaka", "Grand Anse"]
+  },
+  {
+    "country": "Sierra Leone",
+    "code": "SL",
+    "cities": ["Freetown", "Bo", "Kenema", "Makeni", "Koidu", "Lunsar", "Port Loko"]
+  },
+  {
+    "country": "Singapore",
+    "code": "SG",
+    "cities": ["Singapore", "Jurong East", "Woodlands", "Tampines", "Bedok", "Ang Mo Kio", "Punggol", "Choa Chu Kang"]
+  },
+  {
+    "country": "Slovakia",
+    "code": "SK",
+    "cities": ["Bratislava", "Košice", "Prešov", "Žilina", "Banská Bystrica", "Nitra", "Trnava", "Martin"]
+  },
+  {
+    "country": "Slovenia",
+    "code": "SI",
+    "cities": ["Ljubljana", "Maribor", "Kranj", "Celje", "Koper", "Novo Mesto", "Velenje", "Nova Gorica"]
+  },
+  {
+    "country": "Solomon Islands",
+    "code": "SB",
+    "cities": ["Honiara", "Gizo", "Auki", "Noro", "Kirakira", "Tulagi"]
+  },
+  {
+    "country": "Somalia",
+    "code": "SO",
+    "cities": ["Mogadishu", "Hargeisa", "Bosaso", "Kismayo", "Merca", "Galkayo", "Berbera", "Baidoa"]
+  },
+  {
+    "country": "South Africa",
+    "code": "ZA",
+    "cities": ["Johannesburg", "Cape Town", "Durban", "Pretoria", "Port Elizabeth", "Bloemfontein", "Nelspruit", "Polokwane"]
+  },
+  {
+    "country": "South Korea",
+    "code": "KR",
+    "cities": ["Seoul", "Busan", "Incheon", "Daejeon", "Gwangju", "Suwon", "Ulsan", "Changwon"]
+  },
+  {
+    "country": "South Sudan",
+    "code": "SS",
+    "cities": ["Juba", "Malakal", "Wau", "Yei", "Yambio", "Aweil", "Bentiu"]
+  },
+  {
+    "country": "Spain",
+    "code": "ES",
+    "cities": ["Madrid", "Barcelona", "Valencia", "Seville", "Zaragoza", "Málaga", "Murcia", "Palma de Mallorca", "Bilbao", "Alicante"]
+  },
+  {
+    "country": "Sri Lanka",
+    "code": "LK",
+    "cities": ["Colombo", "Dehiwala-Mount Lavinia", "Moratuwa", "Kandy", "Negombo", "Jaffna", "Galle", "Batticaloa"]
+  },
+  {
+    "country": "Sudan",
+    "code": "SD",
+    "cities": ["Khartoum", "Omdurman", "Port Sudan", "Kassala", "El Obeid", "Nyala", "Wad Medani"]
+  },
+  {
+    "country": "Suriname",
+    "code": "SR",
+    "cities": ["Paramaribo", "Lelydorp", "Nieuw Nickerie", "Moengo", "Nieuw Amsterdam", "Mariënburg"]
+  },
+  {
+    "country": "Sweden",
+    "code": "SE",
+    "cities": ["Stockholm", "Gothenburg", "Malmö", "Uppsala", "Västerås", "Örebro", "Linköping", "Helsingborg"]
+  },
+  {
+    "country": "Switzerland",
+    "code": "CH",
+    "cities": ["Zurich", "Geneva", "Basel", "Lausanne", "Bern", "Winterthur", "Lucerne", "St. Gallen", "Lugano"]
+  },
+  {
+    "country": "Syria",
+    "code": "SY",
+    "cities": ["Damascus", "Aleppo", "Homs", "Latakia", "Hama", "Raqqa", "Deir ez-Zor", "Tartus"]
+  },
+  {
+    "country": "Taiwan",
+    "code": "TW",
+    "cities": ["Taipei", "Kaohsiung", "Taichung", "Tainan", "Taoyuan", "Hsinchu", "Keelung", "Chiayi"]
+  },
+  {
+    "country": "Tajikistan",
+    "code": "TJ",
+    "cities": ["Dushanbe", "Khujand", "Bokhtar", "Kulob", "Istaravshan", "Tursunzoda", "Panjakent"]
+  },
+  {
+    "country": "Tanzania",
+    "code": "TZ",
+    "cities": ["Dar es Salaam", "Mwanza", "Arusha", "Dodoma", "Mbeya", "Morogoro", "Tanga", "Zanzibar City"]
+  },
+  {
+    "country": "Thailand",
+    "code": "TH",
+    "cities": ["Bangkok", "Nonthaburi", "Nakhon Ratchasima", "Chiang Mai", "Hat Yai", "Udon Thani", "Pak Kret", "Pattaya"]
+  },
+  {
+    "country": "Togo",
+    "code": "TG",
+    "cities": ["Lomé", "Sokodé", "Kara", "Kpalimé", "Atakpamé", "Dapaong", "Tsévié"]
+  },
+  {
+    "country": "Tonga",
+    "code": "TO",
+    "cities": ["Nuku'alofa", "Neiafu", "Haveluloto", "Vaini", "Pangai"]
+  },
+  {
+    "country": "Trinidad and Tobago",
+    "code": "TT",
+    "cities": ["Port of Spain", "Chaguanas", "San Fernando", "Arima", "Point Fortin", "Scarborough"]
+  },
+  {
+    "country": "Tunisia",
+    "code": "TN",
+    "cities": ["Tunis", "Sfax", "Sousse", "Ettadhamen", "Kairouan", "Bizerte", "Gabès", "Ariana"]
+  },
+  {
+    "country": "Turkey",
+    "code": "TR",
+    "cities": ["Istanbul", "Ankara", "Izmir", "Bursa", "Antalya", "Adana", "Gaziantep", "Konya", "Kocaeli", "Kayseri"]
+  },
+  {
+    "country": "Turkmenistan",
+    "code": "TM",
+    "cities": ["Ashgabat", "Türkmenabat", "Daşoguz", "Mary", "Balkanabat", "Bayramaly", "Türkmenbaşy"]
+  },
+  {
+    "country": "Tuvalu",
+    "code": "TV",
+    "cities": ["Funafuti", "Fongafale", "Asau", "Kilu"]
+  },
+  {
+    "country": "Uganda",
+    "code": "UG",
+    "cities": ["Kampala", "Nansana", "Kira", "Makindye", "Kasse", "Mbarara", "Gulu", "Entebbe"]
+  },
+  {
+    "country": "Ukraine",
+    "code": "UA",
+    "cities": ["Kyiv", "Kharkiv", "Odesa", "Dnipropetrovsk", "Zaporizhzhia", "Lviv", "Kryvyi Rih", "Mykolaiv"]
+  },
+  {
+    "country": "United Arab Emirates",
+    "code": "AE",
+    "cities": ["Dubai", "Abu Dhabi", "Sharjah", "Al Ain", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain"]
+  },
+  {
+    "country": "United Kingdom",
+    "code": "GB",
+    "cities": ["London", "Birmingham", "Manchester", "Glasgow", "Liverpool", "Bristol", "Edinburgh", "Leeds", "Sheffield", "Belfast"]
+  },
+  {
+    "country": "United States",
+    "code": "US", "cities": ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego", "Dallas", "San Jose", "Austin", "Miami", "Seattle", "San Francisco"]
+  },
+  {
+    "country": "Uruguay",
+    "code": "UY",
+    "cities": ["Montevideo", "Salto", "Ciudad de la Costa", "Paysandú", "Las Piedras", "Rivera", "Maldonado", "Tacuarembó"]
+  },
+  {
+    "country": "Uzbekistan",
+    "code": "UZ",
+    "cities": ["Tashkent", "Samarkand", "Namangan", "Andijan", "Nukus", "Bukhara", "Fergana", "Karshi"]
+  },
+  {
+    "country": "Vanuatu",
+    "code": "VU",
+    "cities": ["Port Vila", "Luganville", "Norsup", "Isangel", "Lakatoro"]
+  },
+  {
+    "country": "Vatican City",
+    "code": "VA",
+    "cities": ["Vatican City"]
+  },
+  {
+    "country": "Venezuela",
+    "code": "VE",
+    "cities": ["Caracas", "Maracaibo", "Valencia", "Barquisimeto", "Ciudad Guayana", "Maracay", "Barcelona", "Maturín"]
+  },
+  {
+    "country": "Vietnam",
+    "code": "VN",
+    "cities": ["Ho Chi Minh City", "Hanoi", "Da Nang", "Haiphong", "Can Tho", "Bien Hoa", "Nha Trang", "Buon Ma Thuot"]
+  },
+  {
+    "country": "Yemen",
+    "code": "YE",
+    "cities": ["Sana'a", "Aden", "Taiz", "Al Hudaydah", "Ibb", "Mukalla", "Dhamar"]
+  },
+  {
+    "country": "Zambia",
+    "code": "ZM",
+    "cities": ["Lusaka", "Kitwe", "Ndola", "Kabwe", "Chingola", "Mufulira", "Livingstone", "Luanshya"]
+  },
+  {
+    "country": "Zimbabwe",
+    "code": "ZW",
+    "cities": ["Harare", "Bulawayo", "Chitungwiza", "Mutare", "Gweru", "Epworth", "Kwekwe", "Kadoma"]
+  }
+]

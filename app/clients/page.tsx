@@ -28,6 +28,58 @@ const industryOptions = [
   'Agriculture Tech', 'Manufacturing', 'Logistics', 'SaaS',
 ];
 
+function exportClientsToCSV(clients: Client[]) {
+  if (!clients || clients.length === 0) return;
+
+  const headers = [
+    'Client Name',
+    'Website',
+    'Industry',
+    'Country',
+    'Trust Score (%)',
+    'Status',
+    'Email',
+    'Phone',
+    'Relevance Reason',
+    'Created At'
+  ];
+
+  const escapeCSV = (str: any) => {
+    if (str === undefined || str === null) return '""';
+    const val = String(str).replace(/"/g, '""');
+    return `"${val}"`;
+  };
+
+  const rows = clients.map(c => [
+    escapeCSV(c.name),
+    escapeCSV(c.website),
+    escapeCSV(c.industry),
+    escapeCSV(c.country),
+    escapeCSV(c.trust_score),
+    escapeCSV(c.status),
+    escapeCSV(c.email || 'N/A'),
+    escapeCSV(c.phone || 'N/A'),
+    escapeCSV(c.relevance_reason || 'N/A'),
+    escapeCSV(c.created_at)
+  ]);
+
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.join(','))
+  ].join('\n');
+
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0, 10);
+  link.href = url;
+  link.setAttribute('download', `saved_clients_${dateStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,14 +134,17 @@ export default function ClientsPage() {
             Manage and track your prospect pipeline.
           </p>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-          className="bg-primary text-white font-semibold text-[15px] px-6 py-2 rounded-xl hover:bg-primary-container transition-colors shadow-card flex items-center gap-2 shrink-0"
-        >
-          <span className="material-symbols-outlined text-[18px]">add</span>
-          New Client
-        </motion.button>
+        <div className="flex items-center gap-2">
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => exportClientsToCSV(filtered)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[14px] px-4 py-2 rounded-xl transition-all shadow-card flex items-center gap-1.5 shrink-0 cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[18px]">download</span>
+            Export CSV
+          </motion.button>
+        </div>
       </motion.div>
 
       {/* Filter Bar — exactly like original */}

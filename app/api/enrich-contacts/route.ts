@@ -7,11 +7,20 @@ interface SearXNGResult {
 }
 
 interface BackendEnrichResponse {
-  emails: string[];
+  primary_email?: string | null;
+  all_emails?: string[];
+  emails?: string[];
   phones?: string[];
-  stakeholder: string;
-  context_snippet: string;
+  linkedin_company?: string | null;
+  linkedin_people?: string[];
+  contact_page_url?: string | null;
+  source_label?: string;
+  source_context?: string;
   email_source_context?: string;
+  source_page?: string;
+  email_meta?: any[];
+  stakeholder?: string;
+  context_snippet?: string;
   found: boolean;
 }
 
@@ -37,79 +46,100 @@ async function searchSearXNG(query: string): Promise<SearXNGResult[]> {
   }
 }
 
+async function processEnrichment(companyName: string, websiteUrl: string) {
+  let finalWebsite = websiteUrl ? (websiteUrl.startsWith('http') ? websiteUrl : `https://${websiteUrl}`) : '';
+  if (!finalWebsite && companyName) {
+    const slug = companyName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    finalWebsite = `https://www.${slug}.com`;
+  }
+
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
+  let backendData: BackendEnrichResponse;
+
+  try {
+    const res = await fetch(`${backendUrl}/enrich-contacts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        company_name: companyName,
+        website_url: finalWebsite
+      }),
+      signal: AbortSignal.timeout(12000)
+    });
+    if (!res.ok) throw new Error("Backend failed");
+    backendData = await res.json();
+  } catch (err) {
+    console.warn("Backend enrichment fallback:", err);
+    backendData = {
+      primary_email: null, all_emails: [], emails: [], phones: [],
+      linkedin_company: null, linkedin_people: [], contact_page_url: null,
+      source_label: 'Not found', source_context: 'Not found', found: false
+    };
+  }
+
+  const emails = backendData.all_emails || backendData.emails || [];
+  const primaryEmail = backendData.primary_email || (emails.length > 0 ? emails[0] : null);
+  const phones = backendData.phones || [];
+  const linkedinCompanyUrl = backendData.linkedin_company || null;
+
+  return {
+    primary_email: primaryEmail,
+    all_emails: emails,
+    emails: emails,
+    phones: phones,
+    linkedin_company: linkedinCompanyUrl,
+    linkedin_people: backendData.linkedin_people || [],
+    linkedinUrl: linkedinCompanyUrl,
+    contact_page_url: backendData.contact_page_url || `${finalWebsite.replace(/\/+$/, '')}/contact-us`,
+    source_label: backendData.source_label || 'Contact Page',
+    source_context: backendData.source_context || backendData.email_source_context || 'Extracted from page content',
+    email_source_context: backendData.source_context || backendData.email_source_context || 'Extracted from page content',
+    stakeholder: backendData.stakeholder || 'Not found',
+    context_snippet: backendData.context_snippet || 'Not found',
+    email_meta: backendData.email_meta || [],
+    found: Boolean(backendData.found || primaryEmail || emails.length > 0 || phones.length > 0 || linkedinCompanyUrl)
+  };
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const company = searchParams.get('company')?.trim() || '';
-  const domain  = searchParams.get('domain')?.trim()  || '';
+  const company = searchParams.get('company')?.trim() || searchParams.get('company_name')?.trim() || '';
+  const domain  = searchParams.get('domain')?.trim()  || searchParams.get('website_url')?.trim() || '';
 
   if (!company) return NextResponse.json({ error: 'company is required' }, { status: 400 });
 
   try {
-    // 1. Resolve company website URL
-    let websiteUrl = domain ? (domain.startsWith('http') ? domain : `https://${domain}`) : '';
-    if (!websiteUrl) {
-      const searchResults = await searchSearXNG(`"${company}" B2B official website`);
-      if (searchResults.length > 0) {
-        websiteUrl = searchResults[0].url;
-      } else {
-        websiteUrl = `https://www.${company.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
-      }
-    }
-
-    // 2. Resolve LinkedIn company page from SearXNG
-    const linkedinPromise = searchSearXNG(`"${company}" linkedin.com/company`);
-
-    // 3. Call backend Crawl4AI enrichment endpoint
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
-    const backendPromise = fetch(`${backendUrl}/enrich-contacts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        company_name: company,
-        website_url: websiteUrl
-      }),
-      signal: AbortSignal.timeout(90000)
-    }).then(async res => {
-      if (!res.ok) throw new Error("Backend failed");
-      return res.json() as Promise<BackendEnrichResponse>;
-    }).catch(err => {
-      console.warn("Backend enrichment failed, falling back:", err);
-      return { emails: [], stakeholder: 'Not found', context_snippet: 'Not found', found: false } as BackendEnrichResponse;
-    });
-
-    const [linkedinResults, backendData] = await Promise.all([
-      linkedinPromise,
-      backendPromise
-    ]);
-
-    // Parse LinkedIn company URL
-    let linkedinUrl: string | null = null;
-    for (const r of linkedinResults.slice(0, 5)) {
-      if (r.url.includes('linkedin.com/company')) {
-        linkedinUrl = r.url.split('?')[0];
-        break;
-      }
-      const match = r.content.match(/linkedin\.com\/company\/[a-zA-Z0-9\-_]+/);
-      if (match) { linkedinUrl = `https://www.${match[0]}`; break; }
-    }
-
-    if (!linkedinUrl) {
-      const slug = company.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      linkedinUrl = `https://www.linkedin.com/company/${slug}`;
-    }
-
-    return NextResponse.json({
-      emails: backendData.emails,
-      stakeholder: backendData.stakeholder,
-      context_snippet: backendData.context_snippet,
-      email_source_context: backendData.email_source_context || 'Extracted from page content',
-      phones: backendData.phones || [], // Clean empty array for compatibility
-      linkedinUrl,
-      found: backendData.found || backendData.emails.length > 0
-    });
-
+    const result = await processEnrichment(company, domain);
+    return NextResponse.json(result);
   } catch (err) {
-    console.error('Enrich contacts error:', err);
-    return NextResponse.json({ emails: [], phones: [], stakeholder: 'Not found', context_snippet: 'Not found', linkedinUrl: null, found: false });
+    console.error('GET Enrich contacts error:', err);
+    return NextResponse.json({
+      primary_email: null, all_emails: [], emails: [], phones: [],
+      linkedin_company: null, linkedin_people: [], linkedinUrl: null,
+      contact_page_url: null, source_label: 'Not found', source_context: 'Not found',
+      found: false
+    });
   }
 }
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const company = body.company_name?.trim() || body.company?.trim() || '';
+    const websiteUrl = body.website_url?.trim() || body.website?.trim() || body.domain?.trim() || '';
+
+    if (!company) return NextResponse.json({ error: 'company_name is required' }, { status: 400 });
+
+    const result = await processEnrichment(company, websiteUrl);
+    return NextResponse.json(result);
+  } catch (err) {
+    console.error('POST Enrich contacts error:', err);
+    return NextResponse.json({
+      primary_email: null, all_emails: [], emails: [], phones: [],
+      linkedin_company: null, linkedin_people: [], linkedinUrl: null,
+      contact_page_url: null, source_label: 'Not found', source_context: 'Not found',
+      found: false
+    });
+  }
+}
+

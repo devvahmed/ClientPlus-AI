@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import CountryCitySelector from '@/components/CountryCitySelector';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ContactSource {
@@ -31,6 +32,8 @@ interface Company {
   linkedin?: string;
   description?: string;
   saved?: boolean;
+  enriched?: boolean;
+  enriching?: boolean;
 }
 
 interface AnalysisResult {
@@ -320,61 +323,85 @@ function CompanyCard({
         </div>
       )}
 
-      {/* Contact details & Source Reference */}
+      {/* Contact details & Priority Display */}
       <div className="flex flex-col gap-1.5 bg-surface-container-low rounded-xl px-3 py-2.5 border border-outline-variant/40">
-        {/* Priority 1: Email */}
         {company.email ? (
-          <div className="flex items-center justify-between text-[12px] text-on-surface">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="material-symbols-outlined text-[14px] text-primary flex-shrink-0">email</span>
-              <a href={`mailto:${company.email}`} className="font-medium text-primary hover:underline truncate">{company.email}</a>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1.5 text-[11px] text-secondary italic">
-            <span className="material-symbols-outlined text-[13px] text-outline flex-shrink-0">mail_lock</span>
-            <span>No email listed on main pages</span>
-          </div>
-        )}
-
-        {/* Priority 2: Phone */}
-        {company.phone && (
+          /* Primary: EMAIL */
           <div className="flex items-center gap-1.5 text-[12px] text-on-surface">
-            <span className="material-symbols-outlined text-[14px] text-primary flex-shrink-0">call</span>
-            <a href={`tel:${company.phone}`} className="hover:text-primary transition-colors">{company.phone}</a>
+            <span className="material-symbols-outlined text-[14px] text-primary flex-shrink-0">email</span>
+            <a href={`mailto:${company.email.split(',')[0].trim()}`} className="font-medium text-primary hover:underline truncate">
+              {company.email.split(',')[0].trim()}
+            </a>
           </div>
-        )}
-
-        {/* Priority 3: LinkedIn / Direct Social Contact */}
-        {company.linkedin && (
+        ) : company.phone ? (
+          /* Primary: PHONE */
+          <div className="flex items-center gap-1.5 text-[12px] text-on-surface">
+            <span className="material-symbols-outlined text-[14px] text-emerald-600 flex-shrink-0">call</span>
+            <a href={`tel:${company.phone}`} className="font-medium text-emerald-700 hover:underline truncate">
+              {company.phone}
+            </a>
+          </div>
+        ) : company.linkedin ? (
+          /* Primary: LINKEDIN (only when no email & no phone) */
           <div className="flex items-center gap-1.5 text-[12px] text-on-surface">
             <span className="material-symbols-outlined text-[14px] text-blue-600 flex-shrink-0">link</span>
-            <a href={company.linkedin} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate font-medium">LinkedIn Profile</a>
+            <a href={company.linkedin} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate font-medium">
+              {company.linkedin.replace(/^https?:\/\/(www\.)?/, '')}
+            </a>
+          </div>
+        ) : company.enriching ? (
+          <div className="flex items-center gap-1.5 text-[11px] text-secondary italic">
+            <span className="material-symbols-outlined text-[13px] text-amber-500 animate-spin flex-shrink-0">sync</span>
+            <span>Checking contacts...</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+            <span className="material-symbols-outlined text-[13px] text-gray-400 flex-shrink-0">subtitles_off</span>
+            <span>No direct contact info found</span>
           </div>
         )}
 
-        {/* Source Reference Badge & Link */}
+        {/* Secondary Contact: LinkedIn link (when primary is Email or Phone AND LinkedIn also exists) */}
+        {(company.email || company.phone) && company.linkedin && (
+          <div className="flex items-center gap-1.5 text-[11px] text-secondary pt-1 border-t border-outline-variant/30">
+            <span className="material-symbols-outlined text-[13px] text-blue-600 flex-shrink-0">link</span>
+            <a href={company.linkedin} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate font-normal">
+              {company.linkedin.replace(/^https?:\/\/(www\.)?/, '')}
+            </a>
+          </div>
+        )}
+
+        {/* Source Reference Badge & Direct Contact Page Link */}
         {company.contactSource?.url ? (
           <div className="pt-1.5 mt-1 border-t border-outline-variant/40 flex items-center justify-between text-[11px]">
             <span className="text-secondary font-medium flex items-center gap-1">
               <span className="material-symbols-outlined text-[12px] text-emerald-600">verified</span>
-              Source:
+              Contact Source:
             </span>
             <a
               href={company.contactSource.url}
               target="_blank"
               rel="noreferrer"
-              title={company.contactSource.context || 'Verified from site'}
-              className="text-primary font-medium hover:underline truncate max-w-[190px] flex items-center gap-0.5"
+              title={company.contactSource.context || 'Verified contact page'}
+              className="text-primary font-semibold hover:underline truncate max-w-[200px] flex items-center gap-0.5 bg-blue-50 px-2 py-0.5 rounded border border-blue-200"
             >
-              {company.contactSource.page || 'Contact Page'}
-              <span className="material-symbols-outlined text-[11px]">open_in_new</span>
+              {company.contactSource.page || 'Contact Page'} ↗
             </a>
           </div>
-        ) : (
-          <div className="pt-1 mt-1 border-t border-outline-variant/30 flex items-center justify-between text-[11px] text-secondary">
-            <span>Crawled:</span>
-            <span className="text-[10px] bg-surface-container px-1.5 py-0.5 rounded font-mono">Homepage & /contact</span>
+        ) : company.website && (
+          <div className="pt-1.5 mt-1 border-t border-outline-variant/40 flex items-center justify-between text-[11px]">
+            <span className="text-secondary font-medium flex items-center gap-1">
+              <span className="material-symbols-outlined text-[12px] text-gray-400">language</span>
+              Website:
+            </span>
+            <a
+              href={company.website.startsWith('http') ? company.website : `https://${company.website}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary font-medium hover:underline truncate max-w-[200px]"
+            >
+              {company.domain || company.displayUrl} ↗
+            </a>
           </div>
         )}
       </div>
@@ -452,11 +479,70 @@ function CompanyCard({
   );
 }
 
+// ─── CSV Exporter ─────────────────────────────────────────────────────────────
+function exportCompaniesToCSV(companies: Company[], keyword: string) {
+  if (!companies || companies.length === 0) return;
+
+  const headers = [
+    'Company Name',
+    'Website',
+    'Domain',
+    'Industry',
+    'Country',
+    'AI Fit Score (%)',
+    'Trust Status',
+    'Email',
+    'Phone',
+    'LinkedIn',
+    'Contact Source Page',
+    'Source Context',
+    'Summary'
+  ];
+
+  const escapeCSV = (str: any) => {
+    if (str === undefined || str === null) return '""';
+    const val = String(str).replace(/"/g, '""');
+    return `"${val}"`;
+  };
+
+  const rows = companies.map(c => [
+    escapeCSV(c.name),
+    escapeCSV(c.website),
+    escapeCSV(c.domain),
+    escapeCSV(c.industry),
+    escapeCSV(c.country),
+    escapeCSV(c.trustScore),
+    escapeCSV(c.trustStatus),
+    escapeCSV(c.email || 'N/A'),
+    escapeCSV(c.phone || 'N/A'),
+    escapeCSV(c.linkedin || 'N/A'),
+  ]);
+
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.join(','))
+  ].join('\n');
+
+  // \uFEFF for Excel UTF-8 compatibility
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const safeKeyword = (keyword || 'discovered').trim().replace(/[^a-z0-9]/gi, '_');
+  link.href = url;
+  link.setAttribute('download', `${safeKeyword}_leads_${dateStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DiscoverPage() {
   const [keyword, setKeyword] = useState('');
   const [country, setCountry] = useState('All Countries');
+  const [city, setCity] = useState('');
   const [minTrust, setMinTrust] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -464,6 +550,7 @@ export default function DiscoverPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [lastKeyword, setLastKeyword] = useState('');
   const [lastCountry, setLastCountry] = useState('All Countries');
+  const [lastCity, setLastCity] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [hasSearched, setHasSearched] = useState(false);
   const [query, setQuery] = useState('');
@@ -471,6 +558,120 @@ export default function DiscoverPage() {
   const [activeCompany, setActiveCompany] = useState<Company | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // ── Restore search state from sessionStorage on page mount ─────────────────
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('clientplus_discover_cache');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.companies && parsed.companies.length > 0) {
+          setCompanies(parsed.companies);
+          setHasSearched(true);
+          if (parsed.keyword) setKeyword(parsed.keyword);
+          if (parsed.country) setCountry(parsed.country);
+          if (parsed.city) setCity(parsed.city);
+          if (parsed.minTrust !== undefined) setMinTrust(parsed.minTrust);
+          if (parsed.lastKeyword) setLastKeyword(parsed.lastKeyword);
+          if (parsed.lastCountry) setLastCountry(parsed.lastCountry);
+          if (parsed.lastCity) setLastCity(parsed.lastCity);
+          if (parsed.currentPage) setCurrentPage(parsed.currentPage);
+          if (parsed.query) setQuery(parsed.query);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to restore discover session state:', e);
+    }
+  }, []);
+
+  // ── Background Enrichment Loop ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!companies || companies.length === 0) return;
+    companies.forEach(async (company) => {
+      const compAny = company as any;
+      if (compAny.enriched || compAny.enriching) return;
+
+      setCompanies(prev => prev.map(c => c.id === company.id ? { ...c, enriching: true } as any : c));
+
+      try {
+        const res = await fetch('/api/enrich-contacts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            company_name: company.name,
+            website_url: company.website || company.domain
+          })
+        });
+        if (!res.ok) throw new Error('Enrichment failed');
+        const data = await res.json();
+
+        setCompanies(prev => prev.map(c => {
+          if (c.id !== company.id) return c;
+          const allEmails = data.all_emails || data.emails || (c.email ? [c.email] : []);
+          const primaryEmail = data.primary_email || allEmails[0] || c.email;
+          const phones = data.phones || (c.phone ? [c.phone] : []);
+          const linkedinCompany = data.linkedin_company || data.linkedinUrl || c.linkedin;
+
+          return {
+            ...c,
+            email: primaryEmail || (allEmails.length > 0 ? allEmails.join(', ') : undefined),
+            phone: phones.length > 0 ? phones[0] : c.phone,
+            linkedin: linkedinCompany || c.linkedin,
+            contactSource: data.contact_page_url ? {
+              url: data.contact_page_url,
+              label: data.source_label || 'Contact Page',
+              context: data.source_context || data.email_source_context
+            } : c.contactSource,
+            enriching: false,
+            enriched: true,
+          } as any;
+        }));
+      } catch {
+        setCompanies(prev => prev.map(c => c.id === company.id ? { ...c, enriching: false, enriched: true } as any : c));
+      }
+    });
+  }, [companies]);
+
+  // ── Auto-persist state to sessionStorage whenever companies/filters update ──
+  useEffect(() => {
+    if (companies && companies.length > 0) {
+      try {
+        sessionStorage.setItem('clientplus_discover_cache', JSON.stringify({
+          companies,
+          keyword,
+          country,
+          city,
+          minTrust,
+          lastKeyword: lastKeyword || keyword,
+          lastCountry: lastCountry || country,
+          lastCity: lastCity || city,
+          currentPage,
+          query,
+        }));
+      } catch (e) {
+        console.warn('Failed to persist discover session:', e);
+      }
+    }
+  }, [companies, keyword, country, city, minTrust, lastKeyword, lastCountry, lastCity, currentPage, query]);
+
+  const handleClearSession = () => {
+    try {
+      sessionStorage.removeItem('clientplus_discover_cache');
+    } catch (e) {}
+    setCompanies([]);
+    setHasSearched(false);
+    setKeyword('');
+    setCountry('All Countries');
+    setCity('');
+    setMinTrust(0);
+    setLastKeyword('');
+    setLastCountry('All Countries');
+    setLastCity('');
+    setCurrentPage(1);
+    setQuery('');
+    setError(null);
+    setErrorFix(null);
+  };
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -482,18 +683,19 @@ export default function DiscoverPage() {
     setLoading(true); setError(null); setErrorFix(null);
     
     let nextPage = 1;
-    const isSubsequent = !forceReset && keyword.trim() === lastKeyword && country === lastCountry;
+    const isSubsequent = !forceReset && keyword.trim() === lastKeyword && country === lastCountry && city === lastCity;
     if (isSubsequent) {
       nextPage = currentPage + 1;
     } else {
-      // Reset local page state on fresh search or new keyword/country
-      setCurrentPage(0);
+      // Reset local page state on fresh search or new keyword/country/city
+      setCurrentPage(1);
     }
 
     try {
       const params = new URLSearchParams({
         keyword: keyword.trim(),
         country,
+        city: city.trim(),
         minTrustScore: String(minTrust),
         pageno: String(nextPage),
         ...(forceReset ? { clearCache: 'true' } : {}),
@@ -529,6 +731,7 @@ export default function DiscoverPage() {
         setCurrentPage(1);
         setLastKeyword(keyword.trim());
         setLastCountry(country);
+        setLastCity(city);
       }
 
       setQuery(data.query ?? `${keyword.trim()} companies`);
@@ -538,7 +741,7 @@ export default function DiscoverPage() {
     } finally {
       setLoading(false);
     }
-  }, [keyword, country, minTrust, lastKeyword, lastCountry, currentPage]);
+  }, [keyword, country, city, minTrust, lastKeyword, lastCountry, lastCity, currentPage]);
 
 
   const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === 'Enter') handleSearch(); };
@@ -611,17 +814,13 @@ export default function DiscoverPage() {
               className="w-full h-10 px-3 py-2 bg-surface border border-outline-variant rounded-xl text-[14px] text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
             />
           </div>
-          {/* Country */}
-          <div className="w-full md:w-52">
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-secondary mb-2">Country</label>
-            <div className="relative">
-              <select value={country} onChange={(e) => setCountry(e.target.value)}
-                className="w-full h-10 px-3 py-2 bg-surface border border-outline-variant rounded-xl text-[14px] text-on-surface appearance-none focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all">
-                {COUNTRIES.map((c) => <option key={c}>{c}</option>)}
-              </select>
-              <span className="material-symbols-outlined absolute right-3 top-2.5 text-secondary pointer-events-none text-[18px]">expand_more</span>
-            </div>
-          </div>
+          {/* Country & Optional Region/City Dropdown */}
+          <CountryCitySelector
+            country={country}
+            city={city}
+            onCountryChange={setCountry}
+            onCityChange={setCity}
+          />
           {/* Min Trust */}
           <div className="w-full md:w-40">
             <label className="block text-[11px] font-semibold uppercase tracking-wider text-secondary mb-2">Min Trust Score</label>
@@ -649,11 +848,22 @@ export default function DiscoverPage() {
               whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
               onClick={() => handleSearch(true)} disabled={loading}
               title="Clear cache and get fresh results from page 1"
-              className="bg-surface border border-outline-variant text-on-surface font-semibold text-[15px] px-4 py-2 h-10 rounded-xl hover:bg-surface-variant transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-70"
+              className="bg-surface border border-outline-variant text-on-surface font-semibold text-[15px] px-3.5 py-2 h-10 rounded-xl hover:bg-surface-variant transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-70"
             >
               <span className="material-symbols-outlined text-[18px]">refresh</span>
               Fresh
             </motion.button>
+            {hasSearched && (
+              <motion.button
+                whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                onClick={handleClearSession} disabled={loading}
+                title="Reset search and clear saved session"
+                className="bg-red-50 border border-red-200 text-red-700 font-semibold text-[14px] px-3.5 py-2 h-10 rounded-xl hover:bg-red-100 transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-70"
+              >
+                <span className="material-symbols-outlined text-[18px]">delete_sweep</span>
+                Reset
+              </motion.button>
+            )}
           </div>
         </div>
 
@@ -729,13 +939,25 @@ export default function DiscoverPage() {
         {/* Results */}
         {!loading && hasSearched && companies.length > 0 && (
           <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="flex justify-between items-center mb-4">
-              <p className="text-[14px] text-secondary">
-                <span className="font-semibold text-on-surface">{companies.length}</span> companies found
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 bg-white p-3.5 rounded-2xl border border-outline-variant/60">
+              <p className="text-[14px] text-secondary flex items-center gap-2">
+                <span className="font-semibold text-on-surface text-[15px] bg-primary/10 text-primary px-2.5 py-0.5 rounded-lg">{companies.length}</span>
+                <span>companies discovered</span>
               </p>
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[14px] text-primary">auto_awesome</span>
-                <span className="text-[12px] text-secondary">Click ✦ on any card to run AI analysis</span>
+              
+              <div className="flex items-center gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                  onClick={() => exportCompaniesToCSV(companies, keyword)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[13px] px-3.5 py-1.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px]">download</span>
+                  Export to CSV
+                </motion.button>
+                <div className="hidden md:flex items-center gap-1.5 text-[12px] text-secondary">
+                  <span className="material-symbols-outlined text-[14px] text-primary">auto_awesome</span>
+                  <span>Click ✦ on any card for AI analysis</span>
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

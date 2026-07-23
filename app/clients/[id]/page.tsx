@@ -19,13 +19,27 @@ interface Client {
   created_at: string;
 }
 
+interface ContactMeta {
+  email: string;
+  source_url?: string;
+  source_page?: string;
+  source_context?: string;
+  source_label?: string;
+}
+
 interface ContactData {
-  emails: string[];
+  primary_email: string | null;
+  all_emails: string[];
+  email_meta: ContactMeta[];
   phones: string[];
-  linkedinUrl: string | null;
+  linkedin_company: string | null;
+  linkedin_people: string[];
+  contact_page_url: string | null;
+  source_label: string;
+  source_context: string;
   stakeholder?: string;
   context_snippet?: string;
-  email_source_context?: string;
+  outreach_suggestion?: string;
   found: boolean;
   loading: boolean;
 }
@@ -114,7 +128,17 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [activeTab, setActiveTab] = useState('Overview');
   const [tasks, setTasks]     = useState(DEFAULT_TASKS);
   const [contacts, setContacts] = useState<ContactData>({
-    emails: [], phones: [], linkedinUrl: null, found: false, loading: false,
+    primary_email: null,
+    all_emails: [],
+    email_meta: [],
+    phones: [],
+    linkedin_company: null,
+    linkedin_people: [],
+    contact_page_url: null,
+    source_label: 'Contact Page',
+    source_context: '',
+    found: false,
+    loading: false,
   });
 
   // Load client data
@@ -145,25 +169,43 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     fetch(`/api/enrich-contacts?company=${encodeURIComponent(client.name)}&domain=${encodeURIComponent(domain)}`)
       .then(r => r.json())
       .then(data => {
-        // If client already has email saved in DB, add it first
-        const emails = [...new Set([
+        const allEmails = [...new Set([
           ...(client.email ? [client.email] : []),
-          ...(data.emails || []),
-        ])].slice(0, 4);
+          ...(data.all_emails || data.emails || []),
+        ])];
+        const primaryEmail = data.primary_email || allEmails[0] || client.email || null;
 
         const phones = [...new Set([
           ...(client.phone ? [client.phone] : []),
           ...(data.phones || []),
-        ])].slice(0, 2);
+        ])];
+
+        const linkedinCompany = data.linkedin_company || data.linkedinUrl || null;
+        const linkedinPeople = data.linkedin_people || [];
+        const contactPageUrl = data.contact_page_url || (client.website ? `${client.website.replace(/\/+$/, '')}/contact-us` : null);
+        const sourceLabel = data.source_label || 'Contact Page';
+        const sourceContext = data.source_context || data.email_source_context || 'Verified from site';
+
+        const outreachSuggestion = primaryEmail
+          ? `Primary Email (${primaryEmail}) verified near ${sourceLabel}. Suggested channel: Cold Email outreach + LinkedIn Company connect.`
+          : linkedinCompany
+          ? `No public email found. Suggested channel: LinkedIn Company Outreach & InMail to team.`
+          : `Contact company via website contact form at ${contactPageUrl || client.website}.`;
 
         setContacts({
-          emails,
+          primary_email: primaryEmail,
+          all_emails: allEmails,
+          email_meta: data.email_meta || [],
           phones,
-          linkedinUrl: data.linkedinUrl || null,
+          linkedin_company: linkedinCompany,
+          linkedin_people: linkedinPeople,
+          contact_page_url: contactPageUrl,
+          source_label: sourceLabel,
+          source_context: sourceContext,
           stakeholder: data.stakeholder || 'Not found',
           context_snippet: data.context_snippet || 'Not found',
-          email_source_context: data.email_source_context || 'Extracted from page content',
-          found: emails.length > 0 || phones.length > 0 || (data.stakeholder && data.stakeholder !== 'Not found'),
+          outreach_suggestion: outreachSuggestion,
+          found: Boolean(primaryEmail || allEmails.length > 0 || phones.length > 0 || linkedinCompany || linkedinPeople.length > 0),
           loading: false,
         });
       })
@@ -347,122 +389,167 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
               {/* ── Contact Info ───────────────────────────────────────── */}
               {activeTab === 'Contact Info' && (
-                <motion.div key="ci" className="bg-white rounded-2xl border border-outline-variant soft-shadow flex flex-col"
+                <motion.div key="ci" className="bg-white rounded-2xl border border-outline-variant soft-shadow flex flex-col space-y-4 p-5"
                   initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
 
-                  <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                     <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary text-[17px]">contacts</span>
-                      <h3 className="text-[14px] font-semibold text-on-surface">Contact Information</h3>
+                      <span className="material-symbols-outlined text-primary text-[20px]">contacts</span>
+                      <h3 className="text-[16px] font-bold text-on-surface">Contact Information</h3>
                     </div>
                     {contacts.loading && (
-                      <div className="flex items-center gap-1.5 text-[12px] text-gray-400">
+                      <div className="flex items-center gap-1.5 text-[12px] text-blue-600 font-medium bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
                         <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                         </svg>
-                        Searching web...
+                        Deep Crawling Web...
                       </div>
                     )}
                   </div>
 
-                  <div className="px-5 py-2">
-
-                    {/* LinkedIn */}
-                    {contacts.linkedinUrl && (
-                      <ContactItem icon="groups" label="LinkedIn"
-                        value={contacts.linkedinUrl.replace('https://www.', '')}
-                        href={contacts.linkedinUrl} iconColor="text-[#0077b5]" />
-                    )}
-                    {contacts.loading && !contacts.linkedinUrl && (
-                      <div className="flex items-center gap-2.5 py-3 border-b border-gray-100">
-                        <div className="w-[18px] h-[18px] rounded shimmer" />
-                        <div className="h-3.5 w-48 rounded shimmer" />
-                      </div>
-                    )}
-
-                    {/* Emails */}
-                    {contacts.emails.length > 0 ? (
-                      contacts.emails.map((email, i) => (
-                        <ContactItem key={email} icon={i === 0 ? 'mail' : 'alternate_email'}
-                          label={i === 0 ? 'Email' : `Email ${i + 1}`}
-                          value={email} href={`mailto:${email}`} iconColor="text-blue-500" />
-                      ))
-                    ) : contacts.loading ? (
-                      [0, 1].map(i => (
-                        <div key={i} className="flex items-center gap-2.5 py-3 border-b border-gray-100">
-                          <div className="w-[18px] h-[18px] rounded shimmer" />
-                          <div className="h-3.5 w-56 rounded shimmer" />
+                  {/* 1. Primary Email (Highlighted) */}
+                  {contacts.primary_email ? (
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                          <span className="material-symbols-outlined text-[20px]">mail</span>
                         </div>
-                      ))
-                    ) : (
-                      <div className="py-3 border-b border-gray-100 flex items-center gap-2 text-[13px] text-gray-400">
-                        <span className="material-symbols-outlined text-[17px]">mail</span>
-                        No email found
-                      </div>
-                    )}
-
-                    {/* Phones */}
-                    {contacts.phones.length > 0 ? (
-                      contacts.phones.map((phone, i) => (
-                        <ContactItem key={phone} icon="call" label={i === 0 ? 'Phone' : `Phone ${i + 1}`}
-                          value={phone} href={`tel:${phone}`} iconColor="text-green-600" />
-                      ))
-                    ) : contacts.loading ? (
-                      <div className="flex items-center gap-2.5 py-3 border-b border-gray-100">
-                        <div className="w-[18px] h-[18px] rounded shimmer" />
-                        <div className="h-3.5 w-44 rounded shimmer" />
-                      </div>
-                    ) : (
-                      <div className="py-3 flex items-center gap-2 text-[13px] text-gray-400 border-b border-gray-100">
-                        <span className="material-symbols-outlined text-[17px]">call</span>
-                        No phone found
-                      </div>
-                    )}
-
-                    {/* Stakeholder Info */}
-                    {contacts.stakeholder && contacts.stakeholder !== 'Not found' && (
-                      <ContactItem icon="person" label="Stakeholder"
-                        value={typeof contacts.stakeholder === 'string' ? contacts.stakeholder : JSON.stringify(contacts.stakeholder)} iconColor="text-purple-600" />
-                    )}
-                    {contacts.loading && (
-                      <div className="flex items-center gap-2.5 py-3 border-b border-gray-100">
-                        <div className="w-[18px] h-[18px] rounded shimmer" />
-                        <div className="h-3.5 w-52 rounded shimmer" />
-                      </div>
-                    )}
-
-                    {/* Context Snippet */}
-                    {contacts.context_snippet && contacts.context_snippet !== 'Not found' && (
-                      <div className="py-3.5 border-b border-gray-100 last:border-0">
-                        <div className="flex items-center gap-2 mb-2 text-gray-500">
-                          <span className="material-symbols-outlined text-[18px] text-orange-500">description</span>
-                          <span className="text-[13px]">Business Intel Context</span>
+                        <div>
+                          <div className="text-[11px] font-semibold uppercase tracking-wider text-blue-700">Primary Contact Email</div>
+                          <a href={`mailto:${contacts.primary_email}`} className="text-[16px] font-bold text-blue-950 hover:underline">
+                            {contacts.primary_email}
+                          </a>
                         </div>
-                        <p className="text-[13px] text-gray-600 bg-orange-50/50 border border-orange-100 p-3 rounded-xl leading-relaxed">
-                          {typeof contacts.context_snippet === 'string' ? contacts.context_snippet : JSON.stringify(contacts.context_snippet)}
-                        </p>
                       </div>
-                    )}
+                      <CopyBtn value={contacts.primary_email} />
+                    </div>
+                  ) : !contacts.loading && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 flex items-center gap-2.5 text-gray-500 text-[13px]">
+                      <span className="material-symbols-outlined text-gray-400">mail_lock</span>
+                      <span>No primary email identified yet</span>
+                    </div>
+                  )}
 
-                    {/* Source Verification Context */}
-                    {contacts.email_source_context && contacts.email_source_context !== 'Not found' && (
-                      <div className="py-3.5 border-b border-gray-100 last:border-0">
-                        <div className="flex items-center gap-2 mb-2 text-gray-500">
-                          <span className="material-symbols-outlined text-[18px] text-green-600">verified_user</span>
-                          <span className="text-[13px]">Source Verification</span>
-                        </div>
-                        <p className="text-[12px] text-gray-500 italic bg-gray-50 border border-gray-200 p-2.5 rounded-xl leading-relaxed">
-                          {contacts.email_source_context}
-                        </p>
+                  {/* 2. All Emails List with Source Reference */}
+                  {contacts.all_emails.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-[13px] font-semibold text-gray-700 flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[16px] text-primary">mark_email_read</span>
+                        All Extracted Emails & Source References
+                      </h4>
+                      <div className="bg-surface-container-low rounded-xl p-3 border border-outline-variant/40 divide-y divide-gray-100">
+                        {contacts.all_emails.map((em, idx) => {
+                          const meta = contacts.email_meta.find(m => m.email?.toLowerCase() === em.toLowerCase());
+                          const label = meta?.source_label || contacts.source_label || 'Contact Page';
+                          const page = meta?.source_page || '/contact-us';
+                          return (
+                            <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[13px]">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="material-symbols-outlined text-[15px] text-blue-500">alternate_email</span>
+                                <a href={`mailto:${em}`} className="font-semibold text-blue-600 hover:underline truncate">
+                                  {em}
+                                </a>
+                                <span className="text-gray-400 font-normal shrink-0">
+                                  — Found near <span className="font-medium text-gray-700">{label}</span> heading on <span className="font-mono text-gray-600">{page}</span> page
+                                </span>
+                              </div>
+                              <CopyBtn value={em} />
+                            </div>
+                          );
+                        })}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
-                  {/* Not found state */}
+                  {/* 3. All Phone Numbers */}
+                  {contacts.phones.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-[13px] font-semibold text-gray-700 flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[16px] text-emerald-600">call</span>
+                        All Phone Numbers
+                      </h4>
+                      <div className="bg-surface-container-low rounded-xl p-3 border border-outline-variant/40 flex flex-wrap gap-3">
+                        {contacts.phones.map((phone, idx) => (
+                          <div key={idx} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-200">
+                            <span className="material-symbols-outlined text-[16px] text-emerald-600">phone_in_talk</span>
+                            <a href={`tel:${phone}`} className="font-semibold text-gray-800 hover:text-emerald-700 text-[13px]">
+                              {phone}
+                            </a>
+                            <CopyBtn value={phone} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 4. LinkedIn Company URL & 5. LinkedIn People profiles */}
+                  {(contacts.linkedin_company || contacts.linkedin_people.length > 0) && (
+                    <div className="space-y-2">
+                      <h4 className="text-[13px] font-semibold text-gray-700 flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[16px] text-[#0077b5]">groups</span>
+                        LinkedIn Presence & Team Profiles
+                      </h4>
+                      <div className="bg-blue-50/50 rounded-xl p-3 border border-blue-100 space-y-2">
+                        {contacts.linkedin_company && (
+                          <div className="flex items-center justify-between text-[13px]">
+                            <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-[16px] text-[#0077b5]">domain</span>
+                              <span className="font-medium text-gray-600">Company Page:</span>
+                              <a href={contacts.linkedin_company} target="_blank" rel="noreferrer" className="font-semibold text-blue-700 hover:underline">
+                                {contacts.linkedin_company.replace(/^https?:\/\/(www\.)?/, '')}
+                              </a>
+                            </div>
+                            <CopyBtn value={contacts.linkedin_company} />
+                          </div>
+                        )}
+                        {contacts.linkedin_people.map((pUrl, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-[13px] pt-1 border-t border-blue-100/60">
+                            <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-[16px] text-purple-600">person</span>
+                              <span className="font-medium text-gray-600">People Profile #{idx + 1}:</span>
+                              <a href={pUrl} target="_blank" rel="noreferrer" className="font-semibold text-purple-700 hover:underline">
+                                {pUrl.replace(/^https?:\/\/(www\.)?/, '')}
+                              </a>
+                            </div>
+                            <CopyBtn value={pUrl} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 6. Contact Page Direct Link */}
+                  {contacts.contact_page_url && (
+                    <div className="flex items-center justify-between bg-surface-container-low p-3 rounded-xl border border-outline-variant/40 text-[13px]">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <span className="material-symbols-outlined text-[18px] text-primary">link</span>
+                        <span>Contact Page Direct Link:</span>
+                        <a href={contacts.contact_page_url} target="_blank" rel="noreferrer" className="font-bold text-primary hover:underline">
+                          {contacts.contact_page_url} ↗
+                        </a>
+                      </div>
+                      <CopyBtn value={contacts.contact_page_url} />
+                    </div>
+                  )}
+
+                  {/* 7. Best Outreach Suggestion */}
+                  {contacts.outreach_suggestion && (
+                    <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4 space-y-1">
+                      <div className="flex items-center gap-2 text-amber-900 font-bold text-[13px]">
+                        <span className="material-symbols-outlined text-[18px] text-amber-600">auto_awesome</span>
+                        Recommended Outreach Strategy
+                      </div>
+                      <p className="text-[13px] text-amber-950 leading-relaxed font-medium">
+                        {contacts.outreach_suggestion}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Not found fallback */}
                   {!contacts.loading && !contacts.found && (
-                    <div className="px-5 pb-5 pt-2 text-center text-[13px] text-gray-400">
-                      <span className="material-symbols-outlined text-3xl block mb-1 text-gray-300">search_off</span>
+                    <div className="p-6 text-center text-[13px] text-gray-400">
+                      <span className="material-symbols-outlined text-4xl block mb-2 text-gray-300">search_off</span>
                       Could not find contact info for <strong>{client.name}</strong> automatically.
                       <br />Try searching manually on{' '}
                       <a href={`https://www.linkedin.com/company/${client.name.toLowerCase().replace(/\s+/g, '-')}`}

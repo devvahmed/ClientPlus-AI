@@ -153,81 +153,144 @@ const COUNTRY_INTELLIGENCE: Record<string, {
     tlds: ['.de', '.com', '.io', '.ai'],
     block_tlds: ['.cn', '.jp', '.ru', '.fr', '.br'],
     block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
-    company_signals: ['gmbh','ag','kg','ug','ev','solutions','software','technologies','digital'],
-    lang_signals: ['germany','german','deutschland','münchen','berlin','hamburg','frankfurt'],
+    company_signals: ['gmbh', 'ag', 'kg', 'ug', 'ev', 'solutions', 'software', 'technologies', 'digital'],
+    lang_signals: ['germany', 'german', 'deutschland', 'münchen', 'berlin', 'hamburg', 'frankfurt'],
   },
   'Japan': {
     tlds: ['.jp', '.com', '.co.jp'],
     block_tlds: ['.de', '.fr', '.cn', '.ru', '.br'],
     block_scripts: null,
-    company_signals: ['co.,ltd','k.k.','inc','corp','solutions','technologies'],
-    lang_signals: ['japan','japanese','tokyo','osaka'],
+    company_signals: ['co.,ltd', 'k.k.', 'inc', 'corp', 'solutions', 'technologies'],
+    lang_signals: ['japan', 'japanese', 'tokyo', 'osaka'],
   },
   'UAE': {
     tlds: ['.ae', '.com', '.io'],
     block_tlds: ['.cn', '.jp', '.ru', '.br', '.de'],
     block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
-    company_signals: ['llc','fze','fzco','ltd','corp','solutions','technologies','digital'],
-    lang_signals: ['uae','dubai','abu dhabi','emirates'],
+    company_signals: ['llc', 'fze', 'fzco', 'ltd', 'corp', 'solutions', 'technologies', 'digital'],
+    lang_signals: ['uae', 'dubai', 'abu dhabi', 'emirates'],
   },
   'Pakistan': {
     tlds: ['.pk', '.com', '.io'],
     block_tlds: ['.cn', '.jp', '.ru', '.de', '.fr'],
     block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
-    company_signals: ['pvt','ltd','private limited','solutions','technologies','systems'],
-    lang_signals: ['pakistan','karachi','lahore','islamabad','pakistani'],
+    company_signals: ['pvt', 'ltd', 'private limited', 'solutions', 'technologies', 'systems'],
+    lang_signals: ['pakistan', 'karachi', 'lahore', 'islamabad', 'pakistani'],
   },
   'USA': {
     tlds: ['.com', '.io', '.ai', '.tech', '.co'],
     block_tlds: ['.cn', '.ru', '.jp'],
     block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF\u0600-\u06FF]/,
-    company_signals: ['inc','llc','corp','ltd','solutions','technologies','software','systems'],
-    lang_signals: ['usa','united states','american'],
+    company_signals: ['inc', 'llc', 'corp', 'ltd', 'solutions', 'technologies', 'software', 'systems'],
+    lang_signals: ['usa', 'united states', 'american'],
   },
   'United Kingdom': {
     tlds: ['.co.uk', '.com', '.io', '.ai'],
     block_tlds: ['.cn', '.ru', '.jp', '.fr'],
     block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
-    company_signals: ['ltd','plc','llp','limited','solutions','technologies','digital'],
-    lang_signals: ['uk','united kingdom','british','london','manchester'],
+    company_signals: ['ltd', 'plc', 'llp', 'limited', 'solutions', 'technologies', 'digital'],
+    lang_signals: ['uk', 'united kingdom', 'british', 'london', 'manchester'],
   },
   'France': {
     tlds: ['.fr', '.com', '.io'],
     block_tlds: ['.cn', '.jp', '.ru', '.de'],
     block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
-    company_signals: ['sas','sarl','sa','srl','solutions','technologies','logiciels'],
-    lang_signals: ['france','french','paris','lyon'],
+    company_signals: ['sas', 'sarl', 'sa', 'srl', 'solutions', 'technologies', 'logiciels'],
+    lang_signals: ['france', 'french', 'paris', 'lyon'],
   },
   'India': {
     tlds: ['.in', '.com', '.io', '.co.in'],
     block_tlds: ['.cn', '.jp', '.ru', '.de'],
     block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
-    company_signals: ['pvt ltd','private limited','ltd','solutions','technologies','systems','infosys'],
-    lang_signals: ['india','indian','mumbai','delhi','bangalore','hyderabad'],
+    company_signals: ['pvt ltd', 'private limited', 'ltd', 'solutions', 'technologies', 'systems', 'infosys'],
+    lang_signals: ['india', 'indian', 'mumbai', 'delhi', 'bangalore', 'hyderabad'],
   },
   'Singapore': {
     tlds: ['.sg', '.com', '.io', '.ai'],
     block_tlds: ['.cn', '.jp', '.ru', '.de'],
     block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
-    company_signals: ['pte ltd','pte','ltd','corp','solutions','technologies','digital'],
-    lang_signals: ['singapore','singaporean'],
+    company_signals: ['pte ltd', 'pte', 'ltd', 'corp', 'solutions', 'technologies', 'digital'],
+    lang_signals: ['singapore', 'singaporean'],
   },
-  'Australia': {
-    tlds: ['.com.au', '.com', '.io', '.ai'],
+  'Brazil': {
+    tlds: ['.com.br', '.br', '.com', '.io', '.ai'],
     block_tlds: ['.cn', '.jp', '.ru', '.de'],
     block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
-    company_signals: ['pty ltd','pty','ltd','corp','solutions','technologies','digital'],
-    lang_signals: ['australia','australian','sydney','melbourne','brisbane'],
+    company_signals: ['ltda', 's.a.', 'sa', 'logistica', 'transportes', 'solucoes', 'servicos', 'brasil', 'brazil', 'group', 'inc', 'corp'],
+    lang_signals: ['brazil', 'brasil', 'sao paulo', 'rio de janeiro', 'curitiba'],
+  },
+  'Canada': {
+    tlds: ['.ca', '.com', '.io', '.ai'],
+    block_tlds: ['.cn', '.jp', '.ru', '.de'],
+    block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
+    company_signals: ['inc', 'ltd', 'corp', 'limited', 'canada', 'solutions', 'technologies', 'group'],
+    lang_signals: ['canada', 'canadian', 'toronto', 'vancouver', 'montreal', 'calgary'],
+  },
+  'Mexico': {
+    tlds: ['.com.mx', '.mx', '.com', '.io'],
+    block_tlds: ['.cn', '.jp', '.ru', '.de'],
+    block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
+    company_signals: ['s.a.', 'sa', 'de c.v.', 'cv', 'logistica', 'soluciones', 'mexico', 'grupo'],
+    lang_signals: ['mexico', 'mexican', 'cdmx', 'monterrey', 'guadalajara'],
+  },
+  'Spain': {
+    tlds: ['.es', '.com', '.io'],
+    block_tlds: ['.cn', '.jp', '.ru', '.de'],
+    block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
+    company_signals: ['s.l.', 'sl', 's.a.', 'sa', 'soluciones', 'tecnologias', 'grupo', 'espana'],
+    lang_signals: ['spain', 'spanish', 'madrid', 'barcelona', 'valencia'],
+  },
+  'Italy': {
+    tlds: ['.it', '.com', '.io'],
+    block_tlds: ['.cn', '.jp', '.ru', '.de'],
+    block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
+    company_signals: ['s.r.l.', 'srl', 's.p.a.', 'spa', 'soluzioni', 'tecnologie', 'gruppo', 'italia'],
+    lang_signals: ['italy', 'italian', 'rome', 'milan', 'turin'],
+  },
+  'Netherlands': {
+    tlds: ['.nl', '.com', '.io', '.ai'],
+    block_tlds: ['.cn', '.jp', '.ru', '.de'],
+    block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
+    company_signals: ['b.v.', 'bv', 'n.v.', 'nv', 'solutions', 'technologies', 'group', 'dutch'],
+    lang_signals: ['netherlands', 'dutch', 'amsterdam', 'rotterdam', 'utrecht'],
+  },
+  'Sweden': {
+    tlds: ['.se', '.com', '.io', '.ai'],
+    block_tlds: ['.cn', '.jp', '.ru', '.de'],
+    block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
+    company_signals: ['ab', 'aktiebolag', 'group', 'solutions', 'technologies', 'sweden'],
+    lang_signals: ['sweden', 'swedish', 'stockholm', 'gothenburg'],
+  },
+  'South Korea': {
+    tlds: ['.co.kr', '.kr', '.com', '.io', '.ai'],
+    block_tlds: ['.cn', '.ru', '.de'],
+    block_scripts: null,
+    company_signals: ['co.,ltd', 'inc', 'corp', 'solutions', 'technologies', 'korea'],
+    lang_signals: ['korea', 'korean', 'seoul', 'busan'],
+  },
+  'Turkey': {
+    tlds: ['.com.tr', '.tr', '.com', '.io'],
+    block_tlds: ['.cn', '.jp', '.ru', '.de'],
+    block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
+    company_signals: ['a.s.', 'as', 'ltd. sti.', 'sti', 'lojistik', 'cozumleri', 'turkey', 'turkiye'],
+    lang_signals: ['turkey', 'turkish', 'istanbul', 'ankara', 'izmir'],
+  },
+  'Saudi Arabia': {
+    tlds: ['.com.sa', '.sa', '.com', '.io'],
+    block_tlds: ['.cn', '.jp', '.ru', '.de'],
+    block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/,
+    company_signals: ['co', 'ltd', 'llc', 'company', 'solutions', 'technologies', 'saudi'],
+    lang_signals: ['saudi', 'saudi arabia', 'riyadh', 'jeddah'],
   },
 };
 
 function getCountryIntelligence(country: string) {
   if (!country || country === 'All Countries') {
     return {
-      tlds: ['.com', '.io', '.ai', '.tech', '.co'],
+      tlds: ['.com', '.io', '.ai', '.tech', '.co', '.org', '.net'],
       block_tlds: [] as string[],
       block_scripts: /[\u4E00-\u9FFF\u3040-\u30FF]/ as RegExp | null,
-      company_signals: ['ltd','inc','corp','llc','solutions','technologies','software'],
+      company_signals: ['ltd', 'inc', 'corp', 'llc', 'solutions', 'technologies', 'software', 'systems', 'group', 'logistics'],
       lang_signals: [] as string[],
     };
   }
@@ -237,20 +300,23 @@ function getCountryIntelligence(country: string) {
     if (key.toLowerCase().includes(lower) || lower.includes(key.toLowerCase())) return val;
   }
   return {
-    tlds: ['.com', '.io', '.ai', '.co', '.tech'],
+    tlds: ['.com', '.io', '.ai', '.co', '.tech', '.net', '.org', `.${lower}`, `.com.${lower}`],
     block_tlds: [] as string[],
     block_scripts: null as RegExp | null,
-    company_signals: ['ltd','inc','corp','solutions','technologies','software','systems'],
-    lang_signals: [country.toLowerCase()],
+    company_signals: ['ltd', 'inc', 'corp', 'llc', 'solutions', 'technologies', 'software', 'systems', 'group', 'logistics', 'sa', 'ltda', 'bv', 'gmbh', 'pty', 'pte'],
+    lang_signals: [lower],
   };
 }
 
 // ─── Fast Pre-Filter ──────────────────────────────────────────────────────────
+// ─── Fast Pre-Filter ──────────────────────────────────────────────────────────
 const QUICK_JUNK_TOKENS = [
   // Informational & Dictionary content
   'wiki', 'dictionary', 'definition', 'blog', 'news', 'article',
-  'top 10', 'top 5', 'top 15', 'best ', 'ranking', 'review',
-  'directory', 'course', 'tutorial', 'guide', 'comparison',
+  'top 10', 'top 5', 'top 15', 'top 20', 'top 25', 'top 30', 'top 50', 'top 100',
+  'best 10', 'best 5', 'best 20', '10 best', '5 best', '15 best', '20 best',
+  'ranking', 'review', 'directory', 'course', 'tutorial', 'guide', 'comparison',
+  'list of', 'directory of', 'companies in', 'vendors in', 'suppliers in', 'manufacturers in',
   'hinative', 'weblio', 'kotobank', '例文', '意味', '使い方', '辞書', '対義語', '類語',
   'meaning of', 'definition of', 'what is', 'examples of', 'synonyms', 'antonyms',
   // Career & job boards
@@ -282,11 +348,10 @@ const JUNK_DOMAINS = new Set([
   'berlinstartupjobs.com', 'haystackapp.io', 'join.com',
   'angel.co', 'wellfound.com', 'otta.com', 'remoteok.com',
   'jobsintech.io', 'eurojobs.com', 'itvjob.de',
-  // Singapore-specific junk observed in results
-  'icmagroup.org',        // Financial standards body
-  'impriindia.com',       // Indian policy research
-  'samcorporate.com',     // SEO directory
-  'flagright.com',        // Regulatory news (not a client)
+  // Directories & lists
+  'clutch.co', 'g2.com', 'capterra.com', 'goodfirms.co', 'sortlist.com',
+  'trustpilot.com', 'yelp.com', 'glassdoor.com',
+  'icmagroup.org', 'impriindia.com', 'samcorporate.com', 'flagright.com',
 ]);
 
 function isHostBlacklisted(host: string, blackList: Set<string>): boolean {
@@ -302,11 +367,15 @@ function isHostBlacklisted(host: string, blackList: Set<string>): boolean {
 
 function isQuickJunk(title: string = '', url: string = ''): boolean {
   const combined = `${title} ${url}`.toLowerCase();
-  // Domain-level check first (zero-cost)
+  // Domain-level check first
   try {
     const domain = new URL(url).hostname.replace(/^www\./, '');
     if (isHostBlacklisted(domain, JUNK_DOMAINS) || isHostBlacklisted(domain, HARD_BLACKLIST)) return true;
   } catch { /* ignore */ }
+
+  // Regex check for top N / best N lists
+  if (/\b(top\s+\d+|\d+\s+best|best\s+\d+|list\s+of)\b/i.test(combined)) return true;
+
   return QUICK_JUNK_TOKENS.some(token => combined.includes(token));
 }
 
@@ -379,6 +448,7 @@ function isOfficialCorporateWebsite(url: string): boolean {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export interface B2BQualifierResult {
+  company_name?: string;
   is_fit: boolean;
   score: number;
   reason: string;
@@ -387,20 +457,61 @@ export interface B2BQualifierResult {
 // ─── Shared Prompt (identical for both providers) ────────────────────────────
 function buildQualifierPrompt(
   candidate: { title: string; description: string; url: string },
-  profile: ServiceProfile
+  profile: ServiceProfile,
+  country: string = 'Global',
+  region: string = '',
+  keyword: string = ''
 ): string {
-  return `Analyst for ${profile.ourCompany} (services: ${profile.ourServices}).
-Is this a real company that could use AI/robotics/computer vision?
+  const OUR_COMPANY_NAME = profile.ourCompany;
+  const OUR_SERVICES = profile.ourServices;
+
+  return `We are ${OUR_COMPANY_NAME}.
+We provide ${OUR_SERVICES}.
+
+Your job is to STRICTLY decide if this is a GENUINE 
+potential business client for us.
 
 URL: ${candidate.url}
-Title: ${candidate.title.slice(0, 80)}
-Desc: ${candidate.description.slice(0, 150)}
+Title: ${candidate.title}
+Snippet: ${candidate.description}
+Target Industry/Keyword: ${keyword || "Business"}
+Target Country: ${country}
+Target Region/City: ${region || "any"}
 
-REJECT only if: news article, blog, Wikipedia, government, job board, directory, non-profit.
-ACCEPT all real commercial businesses.
+STRICT REJECTION RULES (set is_fit: false, score: 0 if ANY apply):
+- This is a blog, news site, magazine, or media publication
+- This is a wiki, directory, listing site, or job board
+- This is a software/app/tool download site (including 
+  piracy, torrent, or file-sharing sites)
+- This is a competitor AI/tech tool (openai, anthropic, 
+  claude, gemini, chatgpt, copilot, perplexity, etc.)
+- The company's actual location does not match 
+  "${country}" (check the content/snippet, not just domain)
+- The company's core business is completely unrelated to ${keyword || "the target industry"} (e.g. searching for Robotics but finding a train schedule, domain registrar, stock broker, or hotel)
+- The page is not about an actual operating business — 
+  it's a personal blog, forum, or unrelated content
 
-Score 0-100: 85+=strong fit, 70-84=good fit, 50-69=possible, <50=poor.
-Return ONLY JSON: {"is_fit":true,"score":82,"reason":"one line"}`;
+ACCEPTANCE RULE:
+- Only mark is_fit: true if this is a REAL, operating 
+  company that operates in or relies on ${keyword || "the target industry"} and could plausibly need our services
+- Score reflects how strong the fit is based on their 
+  actual business, industry match, and location match
+- NEVER give the same score to different companies — 
+  each score must reflect genuine relative difference 
+  in fit quality
+- Score range: 0-100, only is_fit true if score > 55
+
+COMPANY NAME CLEANING:
+- Extract the actual company/organization name only
+- If title contains "//", "Contact", "About us", "Home" 
+  or similar generic words, extract only the clean 
+  business name before/around those words
+- Never return a generic phrase as the company name
+
+Return ONLY this JSON, nothing else:
+{"company_name": "cleaned name", "is_fit": true/false, 
+"score": 0-100, "reason": "specific one line explaining 
+the decision based on actual content, not assumption"}`;
 }
 
 // ─── Parse Shared LLM JSON Response ──────────────────────────────────────────
@@ -414,13 +525,19 @@ function parseQualifierResponse(raw: string, profile: ServiceProfile): B2BQualif
   const reason = typeof parsed.reason === 'string' && parsed.reason.length > 5
     ? parsed.reason
     : (isFit ? `Potential ${profile.ourServices} client.` : 'Not a relevant company.');
-  return { is_fit: isFit, score, reason };
+  const companyName = typeof parsed.company_name === 'string' && parsed.company_name.trim().length > 1
+    ? parsed.company_name.trim()
+    : undefined;
+  return { company_name: companyName, is_fit: isFit, score, reason };
 }
 
 // ─── Provider: GROQ (cloud, free, ~0.8s) ─────────────────────────────────────
 async function validateWithGroq(
   candidate: { title: string; description: string; url: string },
   profile: ServiceProfile,
+  country: string = 'Global',
+  region: string = '',
+  keyword: string = '',
   retryOnRateLimit = true
 ): Promise<B2BQualifierResult> {
   const apiKey = process.env.GROQ_API_KEY;
@@ -435,7 +552,7 @@ async function validateWithGroq(
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
-        messages: [{ role: 'user', content: buildQualifierPrompt(candidate, profile) }],
+        messages: [{ role: 'user', content: buildQualifierPrompt(candidate, profile, country, region, keyword) }],
         temperature: 0,
         max_tokens: 150,
         response_format: { type: 'json_object' },
@@ -455,7 +572,7 @@ async function validateWithGroq(
     if (response.status === 429 && retryOnRateLimit) {
       console.warn('[Groq] Rate limit hit — retrying after 2s...');
       await new Promise(r => setTimeout(r, 2000));
-      return validateWithGroq(candidate, profile, false);
+      return validateWithGroq(candidate, profile, country, region, keyword, false);
     }
 
     if (response.status === 401) {
@@ -475,16 +592,19 @@ async function validateWithGroq(
 // ─── Provider: OLLAMA (local GPU, ~0.5s with RTX 4070+) ──────────────────────
 async function validateWithOllama(
   candidate: { title: string; description: string; url: string },
-  profile: ServiceProfile
+  profile: ServiceProfile,
+  country: string = 'Global',
+  region: string = '',
+  keyword: string = ''
 ): Promise<B2BQualifierResult> {
-  const ollamaUrl  = process.env.OLLAMA_URL   || 'http://localhost:11434';
+  const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
   const ollamaModel = process.env.OLLAMA_MODEL || 'llama3.1:70b';   // upgrade when on GPU PC
   const response = await fetch(`${ollamaUrl}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: ollamaModel,
-      prompt: buildQualifierPrompt(candidate, profile),
+      prompt: buildQualifierPrompt(candidate, profile, country, region, keyword),
       stream: false,
       format: 'json',
       options: { temperature: 0 },
@@ -502,7 +622,10 @@ async function validateWithOllama(
 // ─── MAIN ROUTER — reads AI_PROVIDER env variable ────────────────────────────
 async function validateCompany(
   candidate: { title: string; description: string; url: string },
-  profile: ServiceProfile
+  profile: ServiceProfile,
+  country: string = 'Global',
+  region: string = '',
+  keyword: string = ''
 ): Promise<B2BQualifierResult> {
   const provider = (process.env.AI_PROVIDER || 'groq').toLowerCase();
 
@@ -510,12 +633,12 @@ async function validateCompany(
 
   try {
     if (provider === 'ollama') {
-      const result = await validateWithOllama(candidate, profile);
+      const result = await validateWithOllama(candidate, profile, country, region, keyword);
       console.log(`[Ollama] fit:${result.is_fit} score:${result.score} | ${result.reason}`);
       return result;
     } else {
       // Default: groq
-      const result = await validateWithGroq(candidate, profile);
+      const result = await validateWithGroq(candidate, profile, country, region, keyword);
       console.log(`[Groq]   fit:${result.is_fit} score:${result.score} | ${result.reason}`);
       return result;
     }
@@ -552,39 +675,52 @@ function getDomain(url: string): string {
 }
 
 function cleanCompanyName(title: string, domain: string): string {
-  // Step 1: Strip everything after common page-title separators
-  let name = title
-    .replace(/\s*[|\-\u2013\u2014]\s*(official\s+site?|home|homepage|welcome|about|solutions|inc\.?|ltd\.?|llc|corp\.?).*$/i, '')
-    .replace(/\s*[|\-\u2013\u2014]\s*.{0,60}$/, '')
-    .replace(/^(skip to|skip to content|skip to main content)/i, '')
+  // Derive clean domain brand fallback (e.g. fanuc.co.jp → Fanuc)
+  const domainParts = domain.split('.')[0].replace(/-/g, ' ');
+  const domainBrand = domainParts
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\b\w/g, c => c.toUpperCase())
     .trim();
 
-  // Step 2: Strip HTML artifacts (&amp; etc.)
-  name = name.replace(/&amp;/g, '&').replace(/&[a-z]+;/gi, '').trim();
+  if (!title) return domainBrand;
 
-  // Step 3: Generic page titles that should fall back to domain
-  const tooGeneric = [
-    'home', 'about', 'contact', 'contact us', 'index', 'welcome',
-    'menu', 'services', 'solutions', 'products', 'portfolio',
-    'skip', 'navigation', 'main content', 'page', 'website',
+  // Clean HTML artifacts
+  let cleanTitle = title.replace(/&amp;/g, '&').replace(/&[a-z]+;/gi, '').trim();
+
+  // Remove common prefix noise like "10 Best...", "Top 10...", "Home - "
+  cleanTitle = cleanTitle.replace(/^(top\s+\d+|best\s+\d+|\d+\s+best|\d+\s+top|home|welcome|about us|contact us)\s*[:|\-\u2013\u2014]\s*/i, '');
+
+  // Split title by common separators (| - — – :)
+  const parts = cleanTitle.split(/\s*[\|\-\u2013\u2014:]\s*/).map(p => p.trim()).filter(Boolean);
+
+  const genericTokens = [
+    'home', 'homepage', 'welcome', 'about', 'about us', 'contact', 'contact us',
+    'official site', 'official website', 'index', 'services', 'solutions', 'products',
+    'overview', 'company', 'inc', 'ltd', 'llc', 'corp', 'co', 'gmbh', 'sa', 'pty'
   ];
 
-  const isGeneric = name.length < 3
-    || name.length > 60
-    || tooGeneric.some(g => name.toLowerCase() === g)
-    || /^(contact|home|menu|nav|skip)/i.test(name);
-
-  if (isGeneric) {
-    // Derive name from domain: canadalogistics.ca → Canada Logistics
-    name = domain
-      .split('.')[0]
-      .replace(/-/g, ' ')
-      .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase → spaced
-      .replace(/\b\w/g, c => c.toUpperCase())
-      .trim();
+  // Find the first non-generic token that represents the company name
+  let candidateName = '';
+  for (const part of parts) {
+    const pLower = part.toLowerCase();
+    if (genericTokens.includes(pLower)) continue;
+    if (/\b(top\s+\d+|\d+\s+best|list of|directory)\b/i.test(pLower)) continue;
+    if (part.length >= 2 && part.length <= 55) {
+      candidateName = part;
+      break;
+    }
   }
 
-  return name.slice(0, 50);
+  if (!candidateName || candidateName.length < 3 || candidateName.length > 60) {
+    return domainBrand;
+  }
+
+  // Strip trailing noise
+  candidateName = candidateName
+    .replace(/\s*(official site|home|welcome|inc\.?|ltd\.?|llc|corp\.?)$/i, '')
+    .trim();
+
+  return candidateName || domainBrand;
 }
 
 function getInitials(name: string): string {
@@ -704,14 +840,15 @@ function humanDelay(): Promise<void> {
 
 // ─── Query Mutation Vectors for WTechX Discovery Engine ──────────────────────
 const NAV_SIGNALS = '("contact" OR "about" OR "solutions" OR "products")';
-const DISCOVERY_NEGATIVES = '-inurl:top -inurl:list -inurl:best -inurl:review -inurl:blog -inurl:article -inurl:guide -inurl:comparison -inurl:wiki -inurl:dictionary';
 
 const QUERY_MUTATIONS = [
-  (k: string, c: string) => `${k} ${c} ${NAV_SIGNALS} ${DISCOVERY_NEGATIVES}`.replace(/\s+/g, ' ').trim(),
-  (k: string, c: string) => `${k} platform ${c} ${NAV_SIGNALS} ${DISCOVERY_NEGATIVES}`.replace(/\s+/g, ' ').trim(),
-  (k: string, c: string) => `corporate B2B ${k} ${c} ${NAV_SIGNALS} ${DISCOVERY_NEGATIVES}`.replace(/\s+/g, ' ').trim(),
-  (k: string, c: string) => `${k} enterprise ${c} ${NAV_SIGNALS} ${DISCOVERY_NEGATIVES}`.replace(/\s+/g, ' ').trim(),
-  (k: string, c: string) => `${k} solutions ${c} ${NAV_SIGNALS} ${DISCOVERY_NEGATIVES}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} company ${c} ${NAV_SIGNALS}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} manufacturer ${c} ${NAV_SIGNALS}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} supplier ${c} ${NAV_SIGNALS}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} solutions ${c} ${NAV_SIGNALS}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} enterprise ${c} ${NAV_SIGNALS}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `corporate B2B ${k} ${c} ${NAV_SIGNALS}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} systems ${c} ${NAV_SIGNALS}`.replace(/\s+/g, ' ').trim(),
 ];
 
 // ─── Core Discovery ───────────────────────────────────────────────────────────
@@ -721,11 +858,14 @@ async function discoverCompanies(
   targetCount: number,
   startTime: number,
   resetCursor: boolean = false,
-  profile: ServiceProfile = getServiceProfile()
+  profile: ServiceProfile = getServiceProfile(),
+  city: string = ''
 ): Promise<CompanyResult[]> {
 
   const cleanCountry = country && country !== 'All Countries' ? country : '';
-  const queryKey = buildQueryKey(keyword, country);
+  const cleanCity = city ? city.trim() : '';
+  const searchLocation = cleanCity ? `${cleanCity}, ${cleanCountry}`.trim() : cleanCountry;
+  const queryKey = buildQueryKey(keyword, searchLocation || country);
 
   // Read ledger — cursor + processed domains
   const ledger = readLedger();
@@ -739,9 +879,9 @@ async function discoverCompanies(
   const lastPage = ledger.query_progress[queryKey] ?? 0;
   const startPage = lastPage + 1;
 
-  // 1. Dynamic Query Mutation Selection on Deep Pages
-  let mutationSeed = Math.floor(lastPage / 10) % QUERY_MUTATIONS.length;
-  let currentQuery = QUERY_MUTATIONS[mutationSeed](keyword, cleanCountry);
+  // 1. Dynamic Query Mutation Selection
+  let mutationSeed = Math.floor(lastPage / 5) % QUERY_MUTATIONS.length;
+  let currentQuery = QUERY_MUTATIONS[mutationSeed](keyword, searchLocation);
 
   console.log(`[Cursor] "${queryKey}" lastPage=${lastPage} → starting page ${startPage} (Mutation Seed #${mutationSeed}: "${currentQuery}")`);
   console.log(`[Ledger] ${processedSet.size} domains already processed`);
@@ -764,27 +904,20 @@ async function discoverCompanies(
       break;
     }
 
-    // Dynamic Query Mutation on Deep Pages (lastPage >= 10 or currentPage >= 10)
-    if (currentPage >= 10 && currentPage % 10 === 0 && mutationSeed === 0) {
-      mutationSeed = (mutationSeed + 1) % QUERY_MUTATIONS.length;
-      currentQuery = QUERY_MUTATIONS[mutationSeed](keyword, cleanCountry);
-      console.log(`[Query Mutation] Deep page offset ${currentPage} reached. Mutating query vector to: "${currentQuery}"`);
-    }
-
     const rawResults = await fetchSearXNG(currentQuery, currentPage, cleanCountry);
 
     // 3. Graceful Engine Offset Bounds Handler
     if (rawResults.length === 0) {
       consecutiveEmpty++;
-      console.log(`[Loop] Page ${currentPage}: empty (${consecutiveEmpty}/4 consecutive)`);
-      if (consecutiveEmpty >= 4) {
+      console.log(`[Loop] Page ${currentPage}: empty (${consecutiveEmpty}/2 consecutive)`);
+      if (consecutiveEmpty >= 2) {
         mutationSeed = (mutationSeed + 1) % QUERY_MUTATIONS.length;
-        if (mutationSeed === 0) {
-          console.log('[Loop] Engine offset bounds reached across all query mutation vectors. Breaking.');
+        if (mutationSeed === 0 && candidates.length >= 5) {
+          console.log('[Loop] Engine offset bounds reached across query vectors. Returning collected candidates.');
           break;
         }
-        currentQuery = QUERY_MUTATIONS[mutationSeed](keyword, cleanCountry);
-        console.log(`[Engine Offset Bounds] Deep page limit hit on page ${currentPage}. Auto-incrementing mutation seed #${mutationSeed}: "${currentQuery}" from page 1.`);
+        currentQuery = QUERY_MUTATIONS[mutationSeed](keyword, searchLocation);
+        console.log(`[Query Vector Switch] Advancing to mutation vector #${mutationSeed}: "${currentQuery}" from page 1.`);
         currentPage = 1;
         consecutiveEmpty = 0;
         await humanDelay();
@@ -800,7 +933,7 @@ async function discoverCompanies(
     // Filter: keep only real business pages, skip ledger duplicates
     let addedThisPage = 0;
 
-    // ── Stage 1: Zero-cost pre-filter all items on this page (no Ollama yet) ──
+    // ── Stage 1: Zero-cost pre-filter all items on this page (no LLM yet) ──
     const survivors: SearXNGResult[] = [];
     for (const item of rawResults) {
       if (!isValidBusinessUrl(item.url) || !isOfficialCorporateWebsite(item.url) || isQuickJunk(item.title, item.url)) {
@@ -817,9 +950,19 @@ async function discoverCompanies(
       survivors.push(item);
     }
 
-    console.log(`[PreFilter] Page ${currentPage}: ${rawResults.length} raw → ${survivors.length} survivors for Ollama`);
+    console.log(`[PreFilter] Page ${currentPage}: ${rawResults.length} raw → ${survivors.length} survivors for AI`);
 
-    // ── Stage 2: Micro-batch Ollama (4 concurrent) — balanced speed vs CPU ──
+    // If a query vector yields < 2 survivors for high-competition terms, mutate vector quickly
+    if (survivors.length < 2 && candidates.length < targetCount) {
+      const nextSeed = (mutationSeed + 1) % QUERY_MUTATIONS.length;
+      if (nextSeed !== mutationSeed) {
+        mutationSeed = nextSeed;
+        currentQuery = QUERY_MUTATIONS[mutationSeed](keyword, searchLocation);
+        console.log(`[Low Survivors Adaptive Switch] Switching to vector #${mutationSeed}: "${currentQuery}"`);
+        currentPage = 1;
+      }
+    }
+    // ── Stage 2: Micro-batch AI Qualifier (4 concurrent) ──
     const BATCH_SIZE = 4;
     for (let bi = 0; bi < survivors.length && candidates.length < targetCount; bi += BATCH_SIZE) {
       const batch = survivors.slice(bi, bi + BATCH_SIZE);
@@ -831,7 +974,7 @@ async function discoverCompanies(
             title: item.title || domain,
             description: (item.content || '').slice(0, 300),
             url: item.url,
-          }, profile);
+          }, profile, cleanCountry || 'Global', cleanCity, keyword);
           return { item, domain, qualResult };
         })
       );
@@ -842,7 +985,7 @@ async function discoverCompanies(
           continue;
         }
         if (candidates.length >= targetCount) break;
-        const name = cleanCompanyName(item.title, domain);
+        const name = qualResult.company_name || cleanCompanyName(item.title, domain);
         const contacts = extractContacts(item.content || '');
         candidates.push({
           name, website: item.url, domain,
@@ -914,10 +1057,20 @@ async function discoverCompanies(
     })
   ).then(results => results.filter(Boolean) as CompanyResult[]);
 
-  if (crawled.length > 0 || lastGoodPage > lastPage) {
+  const seen = new Set<string>();
+  const deduped = crawled.filter(company => {
+    const root = company.domain
+      .replace(/^www\./, '')
+      .toLowerCase();
+    if (seen.has(root)) return false;
+    seen.add(root);
+    return true;
+  });
+
+  if (deduped.length > 0 || lastGoodPage > lastPage) {
     const updatedDomains = [
       ...Array.from(processedSet),
-      ...crawled.map(r => r.domain.toLowerCase()),
+      ...deduped.map(r => r.domain.toLowerCase()),
     ].filter((v, i, a) => a.indexOf(v) === i);
 
     writeLedger({
@@ -929,7 +1082,7 @@ async function discoverCompanies(
     console.log(`[Ledger] ${updatedDomains.length} domains total.`);
   }
 
-  return crawled;
+  return deduped;
 }
 
 // ─── Route Handlers ────────────────────────────────────────────────────────────
@@ -937,6 +1090,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const keyword = searchParams.get('keyword')?.trim() || '';
   const country = searchParams.get('country')?.trim() || '';
+  const city = searchParams.get('city')?.trim() || '';
   const resetCursor = searchParams.get('resetCursor') === 'true' || searchParams.get('clearCache') === 'true';
 
   if (!keyword) {
@@ -944,8 +1098,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const results = await discoverCompanies(keyword, country, 20, Date.now(), resetCursor);
-    const res = NextResponse.json({ companies: results, query: `${keyword} companies` });
+    const results = await discoverCompanies(keyword, country, 20, Date.now(), resetCursor, getServiceProfile(), city);
+    const displayLocation = city ? `${city}, ${country}` : country;
+    const res = NextResponse.json({ companies: results, query: `${keyword} companies in ${displayLocation || 'Global'}` });
     res.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
     res.headers.set('Pragma', 'no-cache');
     return res;
@@ -960,6 +1115,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const keyword = body.keyword?.trim() || '';
     const country = body.country?.trim() || '';
+    const city = body.city?.trim() || '';
     const resetCursor = Boolean(body.resetCursor || body.clearCache);
     const profile = getServiceProfile({
       our_company: body.our_company,
@@ -971,7 +1127,7 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[Profile] Using: ${profile.ourCompany} | ${profile.ourServices}`);
-    const results = await discoverCompanies(keyword, country, 20, Date.now(), resetCursor, profile);
+    const results = await discoverCompanies(keyword, country, 20, Date.now(), resetCursor, profile, city);
     const res = NextResponse.json({ companies: results, query: `${keyword} companies`, profile });
     res.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
     res.headers.set('Pragma', 'no-cache');
