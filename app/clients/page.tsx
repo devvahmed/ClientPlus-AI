@@ -280,7 +280,7 @@ export default function ClientsPage() {
             animate={{ opacity: 1 }}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
           >
-            {filtered.map((client, i) => (
+            {filtered.map((client: any, i) => (
               <ClientCard
                 key={client.id}
                 id={client.id}
@@ -291,7 +291,10 @@ export default function ClientsPage() {
                 website={client.website}
                 logo_url={client.logo_url}
                 email={client.email}
-                phone={client.phone}
+                phone={client.phone || client.phones}
+                linkedin_company={client.linkedin_company || client.linkedin}
+                contact_source_url={client.contact_source_url}
+                contact_source_page={client.contact_source_page}
                 index={i}
               />
             ))}

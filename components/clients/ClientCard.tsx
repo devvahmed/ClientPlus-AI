@@ -13,6 +13,9 @@ interface ClientCardProps {
   logo_url?: string;
   email?: string;
   phone?: string;
+  linkedin_company?: string;
+  contact_source_url?: string;
+  contact_source_page?: string;
   index: number;
 }
 
@@ -42,7 +45,7 @@ const LOGO_COLORS = [
 ];
 
 export default function ClientCard({
-  id, name, industry, status, trust_score, website, logo_url, index,
+  id, name, industry, status, trust_score, website, logo_url, email, phone, linkedin_company, contact_source_url, contact_source_page, index,
 }: ClientCardProps) {
   const initials = name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
   const logoColor = LOGO_COLORS[index % LOGO_COLORS.length];
@@ -57,7 +60,7 @@ export default function ClientCard({
       className="bg-white rounded-xl border border-outline-variant soft-shadow p-4 flex flex-col cursor-pointer"
     >
       {/* Header — same as original */}
-      <div className="flex justify-between items-start mb-4">
+      <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-3">
           {/* Logo with clearbit fallback to initials */}
           <div className={`w-12 h-12 rounded-xl ${logo_url ? 'bg-white border border-outline-variant overflow-hidden' : logoColor} flex items-center justify-center text-white font-bold text-[15px] flex-shrink-0`}>
@@ -67,7 +70,6 @@ export default function ClientCard({
                 alt={initials}
                 className="w-full h-full object-contain p-1"
                 onError={(e) => {
-                  // On error, hide img and show initials via parent class swap
                   const parent = (e.target as HTMLElement).parentElement;
                   if (parent) {
                     parent.className = `w-12 h-12 rounded-xl ${logoColor} flex items-center justify-center text-white font-bold text-[15px] flex-shrink-0`;
@@ -89,11 +91,47 @@ export default function ClientCard({
         </button>
       </div>
 
-      {/* Status Badge — same as original */}
-      <div className="mb-4">
+      {/* Status Badge */}
+      <div className="mb-3">
         <span className={`inline-block px-2.5 py-1 rounded-lg text-[11px] font-semibold uppercase tracking-wider ${getStatusStyle(status)}`}>
           {status || 'Pending'}
         </span>
+      </div>
+
+      {/* Contact Info Section */}
+      <div className="flex flex-col gap-1 bg-surface-container-low rounded-lg p-2.5 mb-3 border border-outline-variant/30 text-[12px]">
+        {email ? (
+          <div className="flex items-center gap-1.5 text-on-surface truncate">
+            <span className="material-symbols-outlined text-[14px] text-primary flex-shrink-0">email</span>
+            <a href={`mailto:${email}`} className="text-primary hover:underline font-medium truncate">{email}</a>
+          </div>
+        ) : phone ? (
+          <div className="flex items-center gap-1.5 text-on-surface truncate">
+            <span className="material-symbols-outlined text-[14px] text-emerald-600 flex-shrink-0">call</span>
+            <a href={`tel:${phone}`} className="text-emerald-700 hover:underline font-medium truncate">{phone}</a>
+          </div>
+        ) : linkedin_company ? (
+          <div className="flex items-center gap-1.5 text-on-surface truncate">
+            <span className="material-symbols-outlined text-[14px] text-blue-600 flex-shrink-0">link</span>
+            <a href={linkedin_company} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-medium truncate">
+              {linkedin_company.replace(/^https?:\/\/(www\.)?/, '')}
+            </a>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+            <span className="material-symbols-outlined text-[13px]">subtitles_off</span>
+            <span>No contact info saved</span>
+          </div>
+        )}
+
+        {contact_source_url && (
+          <div className="pt-1 mt-1 border-t border-outline-variant/30 flex items-center justify-between text-[11px]">
+            <span className="text-secondary">Source:</span>
+            <a href={contact_source_url} target="_blank" rel="noreferrer" className="text-primary font-semibold hover:underline truncate max-w-[150px]">
+              {contact_source_page || 'Contact Page'} ↗
+            </a>
+          </div>
+        )}
       </div>
 
       {/* Trust Score — same as original layout */}

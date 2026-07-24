@@ -34,6 +34,11 @@ interface Company {
   saved?: boolean;
   enriched?: boolean;
   enriching?: boolean;
+  matchedService?: string;
+  matchReason?: string;
+  outreachAngle?: string;
+  personalizationHook?: string;
+  redFlags?: string;
 }
 
 interface AnalysisResult {
@@ -309,9 +314,17 @@ function CompanyCard({
             </p>
           </div>
         </div>
-        <span className={`px-2 py-1 rounded-lg text-[11px] font-semibold shrink-0 ml-2 ${fitBadgeColor[company.trustStatus] ?? fitBadgeColor['Neutral']}`}>
-          {company.trustStatus || 'High Fit'}
-        </span>
+        <div className="flex flex-col items-end gap-1.5 shrink-0 ml-2">
+          <span className={`px-2 py-1 rounded-lg text-[11px] font-semibold ${fitBadgeColor[company.trustStatus] ?? fitBadgeColor['Neutral']}`}>
+            {company.trustStatus || 'High Fit'}
+          </span>
+          {company.matchedService && (
+            <span className="px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/70 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[12px] text-indigo-600">bolt</span>
+              Fits: {company.matchedService}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Snippet */}
@@ -320,6 +333,16 @@ function CompanyCard({
           <p className="text-[12px] text-on-surface leading-relaxed bg-blue-50/50 p-2.5 rounded-xl border border-blue-100/50 min-h-full">
             {company.snippet || company.description}
           </p>
+        </div>
+      )}
+
+      {/* Match Reason Supporting Text */}
+      {company.matchReason && (
+        <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-2.5 text-[11.5px] text-indigo-950 flex flex-col gap-0.5">
+          <span className="font-semibold text-indigo-700 flex items-center gap-1 text-[10.5px] uppercase tracking-wider">
+            <span className="material-symbols-outlined text-[13px]">psychology</span> Match Reason & Need
+          </span>
+          <p className="leading-snug text-indigo-900">{company.matchReason}</p>
         </div>
       )}
 
@@ -352,7 +375,7 @@ function CompanyCard({
         ) : company.enriching ? (
           <div className="flex items-center gap-1.5 text-[11px] text-secondary italic">
             <span className="material-symbols-outlined text-[13px] text-amber-500 animate-spin flex-shrink-0">sync</span>
-            <span>Checking contacts...</span>
+            <span>Scanning contacts (up to 30s)...</span>
           </div>
         ) : (
           <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
@@ -406,21 +429,16 @@ function CompanyCard({
         )}
       </div>
 
-      {/* Trust Score */}
-      <div>
-        <div className="flex justify-between text-[12px] text-secondary mb-1.5">
-          <span>AI Fit Match</span>
-          <span className="font-semibold text-on-surface">{company.trustScore ?? 80}%</span>
+      {/* Trust Score / Qualification Status */}
+      {company.trustStatus === 'Pending Review' || (company.trustScore ?? 0) === 0 ? (
+        <div className="flex items-center justify-between text-[12px] bg-amber-50 border border-amber-200/80 rounded-xl px-3 py-1.5 text-amber-900 font-medium">
+          <span className="flex items-center gap-1.5 text-[11px]">
+            <span className="material-symbols-outlined text-[14px] text-amber-600">pending_actions</span>
+            AI Qualification: Pending Review
+          </span>
+          <span className="text-[10.5px] font-semibold bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded">Retry Later</span>
         </div>
-        <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
-          <motion.div
-            className={`${trustBarColor(company.trustScore ?? 80)} h-full rounded-full`}
-            initial={{ width: 0 }}
-            animate={{ width: `${company.trustScore ?? 80}%` }}
-            transition={{ delay: index * 0.06 + 0.3, duration: 0.8, ease: 'easeOut' }}
-          />
-        </div>
-      </div>
+      ) : null}
 
       {/* Meta row */}
       <div className="flex items-center justify-between text-[12px] text-secondary">
@@ -584,15 +602,22 @@ export default function DiscoverPage() {
     }
   }, []);
 
-  // ── Background Enrichment Loop ──────────────────────────────────────────────
+  // ── Controlled Batched Background Enrichment Queue ─────────────────────────
   useEffect(() => {
     if (!companies || companies.length === 0) return;
-    companies.forEach(async (company) => {
-      const compAny = company as any;
-      if (compAny.enriched || compAny.enriching) return;
 
-      setCompanies(prev => prev.map(c => c.id === company.id ? { ...c, enriching: true } as any : c));
+    // Find unenriched and non-enriching companies
+    const pending = companies.filter(c => !c.enriched && !c.enriching);
+    if (pending.length === 0) return;
 
+    // Process in small batches of 3 to avoid overwhelming backend or target sites
+    const batch = pending.slice(0, 3);
+    const batchIds = new Set(batch.map(b => b.id));
+
+    // Immediately mark batch as enriching to prevent duplicate execution
+    setCompanies(prev => prev.map(c => batchIds.has(c.id) ? { ...c, enriching: true } : c));
+
+    batch.forEach(async (company) => {
       try {
         const res = await fetch('/api/enrich-contacts', {
           method: 'POST',
@@ -607,15 +632,20 @@ export default function DiscoverPage() {
 
         setCompanies(prev => prev.map(c => {
           if (c.id !== company.id) return c;
-          const allEmails = data.all_emails || data.emails || (c.email ? [c.email] : []);
-          const primaryEmail = data.primary_email || allEmails[0] || c.email;
-          const phones = data.phones || (c.phone ? [c.phone] : []);
+          const newEmails = (Array.isArray(data.all_emails) && data.all_emails.length > 0)
+            ? data.all_emails
+            : ((Array.isArray(data.emails) && data.emails.length > 0) ? data.emails : []);
+          const primaryEmail = data.primary_email || newEmails[0] || c.email;
+          const finalEmail = primaryEmail || (newEmails.length > 0 ? newEmails.join(', ') : c.email);
+
+          const newPhones = (Array.isArray(data.phones) && data.phones.length > 0) ? data.phones : [];
+          const finalPhone = newPhones.length > 0 ? newPhones[0] : c.phone;
           const linkedinCompany = data.linkedin_company || data.linkedinUrl || c.linkedin;
 
-          return {
+          const updatedComp: Company = {
             ...c,
-            email: primaryEmail || (allEmails.length > 0 ? allEmails.join(', ') : undefined),
-            phone: phones.length > 0 ? phones[0] : c.phone,
+            email: finalEmail,
+            phone: finalPhone,
             linkedin: linkedinCompany || c.linkedin,
             contactSource: data.contact_page_url ? {
               url: data.contact_page_url,
@@ -624,10 +654,34 @@ export default function DiscoverPage() {
             } : c.contactSource,
             enriching: false,
             enriched: true,
-          } as any;
+          };
+
+          // If user saved client while enrichment was in-flight, update server record with new contact info
+          if (c.saved) {
+            fetch('/api/save-client', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: updatedComp.name,
+                website: updatedComp.website,
+                industry: updatedComp.industry,
+                country: updatedComp.country,
+                trustScore: updatedComp.trustScore,
+                status: 'Pending',
+                email: updatedComp.email || null,
+                phone: updatedComp.phone || null,
+                phones: data.phones || [],
+                linkedin: updatedComp.linkedin || null,
+                contactSource: updatedComp.contactSource || null,
+                logoUrl: updatedComp.logoUrl || null,
+              }),
+            }).catch((e) => console.warn('Sync enriched contact to client error:', e));
+          }
+
+          return updatedComp;
         }));
       } catch {
-        setCompanies(prev => prev.map(c => c.id === company.id ? { ...c, enriching: false, enriched: true } as any : c));
+        setCompanies(prev => prev.map(c => c.id === company.id ? { ...c, enriching: false, enriched: true } : c));
       }
     });
   }, [companies]);
@@ -769,11 +823,17 @@ export default function DiscoverPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: company.name, website: company.website, industry: company.industry,
-          country: company.country, trustScore: company.trustScore,
-          relevanceReason: relevanceReason || null, status: 'Pending',
-          email: (company as Company).email || null,
-          phone: (company as Company).phone || null,
+          name: company.name,
+          website: company.website,
+          industry: company.industry,
+          country: company.country,
+          trustScore: company.trustScore,
+          relevanceReason: relevanceReason || null,
+          status: 'Pending',
+          email: company.email || null,
+          phone: company.phone || null,
+          linkedin: company.linkedin || null,
+          contactSource: company.contactSource || null,
           logoUrl: company.logoUrl || null,
         }),
       });

@@ -56,7 +56,9 @@ async function enrichWithHunter(website?: string) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, website, industry, country, trustScore, relevanceReason, status, email, phone, logoUrl } = body;
+    const {
+      name, website, industry, country, trustScore, relevanceReason, status, email, phone, phones, linkedin, linkedin_company, logoUrl, contactSource
+    } = body;
 
     if (!name) {
       return NextResponse.json({ error: 'Company name is required' }, { status: 400 });
@@ -66,7 +68,9 @@ export async function POST(req: NextRequest) {
     const hunter = await enrichWithHunter(website);
 
     const finalEmail = email || hunter.email || null;
-    const finalPhone = phone || hunter.phone || null;
+    const finalPhone = phone || hunter.phone || (Array.isArray(phones) && phones.length > 0 ? phones[0] : null);
+    const finalLinkedin = linkedin_company || linkedin || null;
+    const finalPhones = Array.isArray(phones) && phones.length > 0 ? phones.join(', ') : (finalPhone || null);
 
     // Try full insert with all new columns first
     const fullRecord = {
@@ -79,6 +83,12 @@ export async function POST(req: NextRequest) {
       status: status || 'Pending',
       email: finalEmail,
       phone: finalPhone,
+      phones: finalPhones,
+      linkedin_company: finalLinkedin,
+      contact_source_url: contactSource?.url || null,
+      contact_source_page: contactSource?.page || null,
+      contact_source_label: contactSource?.label || null,
+      contact_source_context: contactSource?.context || null,
       logo_url: logoUrl || null,
     };
 

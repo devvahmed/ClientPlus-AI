@@ -64,7 +64,7 @@ async function processEnrichment(companyName: string, websiteUrl: string) {
         company_name: companyName,
         website_url: finalWebsite
       }),
-      signal: AbortSignal.timeout(12000)
+      signal: AbortSignal.timeout(35000)
     });
     if (!res.ok) throw new Error("Backend failed");
     backendData = await res.json();

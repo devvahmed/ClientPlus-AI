@@ -348,10 +348,24 @@ const JUNK_DOMAINS = new Set([
   'berlinstartupjobs.com', 'haystackapp.io', 'join.com',
   'angel.co', 'wellfound.com', 'otta.com', 'remoteok.com',
   'jobsintech.io', 'eurojobs.com', 'itvjob.de',
-  // Directories & lists
+  // Directories, aggregators & B2B platforms
   'clutch.co', 'g2.com', 'capterra.com', 'goodfirms.co', 'sortlist.com',
   'trustpilot.com', 'yelp.com', 'glassdoor.com',
   'icmagroup.org', 'impriindia.com', 'samcorporate.com', 'flagright.com',
+  'trademo.com', 'kompass.com', 'europages.com', 'thomasnet.com',
+  'alibaba.com', 'made-in-china.com', 'globalsources.com', 'dnb.com',
+  'indiamart.com', 'tradekey.com', 'importers.com', 'yellowpages.com',
+  'pagesjaunes.fr', 'wlw.de', 'wlw.at', 'dunsguide.com', 'zoominfo.com',
+  'crunchbase.com', 'pitchbook.com', 'tracxn.com', 'exporthub.com',
+  'companydata.com', 'disfold.com', 'f6s.com', 'aeroleads.com',
+  // News, trade publications, award lists & government portals
+  'canadianmanufacturing.com', 'investcanada.ca', 'investincanada.com',
+  'greatplacetowork.ca', 'greatplacetowork.com', 'thelogic.co',
+  'newswire.ca', 'globalbankingandfinance.com',
+  // Consumer retail, department stores & non-target e-commerce
+  'marksandspencer.com', 'm-s.com', 'walmart.com', 'target.com',
+  'amazon.com', 'ebay.com', 'etsy.com', 'costco.com', 'macys.com',
+  'nordstrom.com', 'zara.com', 'hm.com', 'asos.com', 'ikea.com',
 ]);
 
 function isHostBlacklisted(host: string, blackList: Set<string>): boolean {
@@ -370,11 +384,12 @@ function isQuickJunk(title: string = '', url: string = ''): boolean {
   // Domain-level check first
   try {
     const domain = new URL(url).hostname.replace(/^www\./, '');
+    if (domain.endsWith('.gov') || domain.endsWith('.gc.ca') || domain.endsWith('.gov.ca') || domain.endsWith('.gov.uk') || domain.endsWith('.gov.au') || domain.endsWith('.gov.in')) return true;
     if (isHostBlacklisted(domain, JUNK_DOMAINS) || isHostBlacklisted(domain, HARD_BLACKLIST)) return true;
   } catch { /* ignore */ }
 
-  // Regex check for top N / best N lists
-  if (/\b(top\s+\d+|\d+\s+best|best\s+\d+|list\s+of)\b/i.test(combined)) return true;
+  // Regex check for top N / best N lists / awards / directories
+  if (/\b(top\s+\d+|\d+\s+best|best\s+\d+|list\s+of|companies\s+in|best\s+workplaces|invest\s+in)\b/i.test(combined)) return true;
 
   return QUICK_JUNK_TOKENS.some(token => combined.includes(token));
 }
@@ -447,11 +462,25 @@ function isOfficialCorporateWebsite(url: string): boolean {
 // Default: groq
 // ═══════════════════════════════════════════════════════════════════════════════
 
+export const OUR_SERVICES_LIST = [
+  "LiDAR-inertial SLAM",
+  "AI perception",
+  "Multi-sensor fusion",
+  "Robotics simulation"
+];
+
 export interface B2BQualifierResult {
   company_name?: string;
   is_fit: boolean;
   score: number;
+  decision?: string;
   reason: string;
+  matched_service?: string;
+  match_reason?: string;
+  outreach_angle?: string;
+  personalization_hook?: string;
+  red_flags?: string;
+  is_rate_limited?: boolean;
 }
 
 // ─── Shared Prompt (identical for both providers) ────────────────────────────
@@ -462,15 +491,16 @@ function buildQualifierPrompt(
   region: string = '',
   keyword: string = ''
 ): string {
-  const OUR_COMPANY_NAME = profile.ourCompany;
-  const OUR_SERVICES = profile.ourServices;
+  const OUR_COMPANY_NAME = profile.ourCompany || "WTechX";
+  const servicesFormatted = OUR_SERVICES_LIST.map(s => `"${s}"`).join(", ");
 
   return `We are ${OUR_COMPANY_NAME}.
-We provide ${OUR_SERVICES}.
+Our services list (${OUR_COMPANY_NAME} capabilities):
+${servicesFormatted}
 
-Your job is to STRICTLY decide if this is a GENUINE 
-potential business client for us.
+Your job is to strictly decide if this candidate is a GENUINE potential business client for us by evaluating in TWO STEPS:
 
+Candidate Information:
 URL: ${candidate.url}
 Title: ${candidate.title}
 Snippet: ${candidate.description}
@@ -478,40 +508,44 @@ Target Industry/Keyword: ${keyword || "Business"}
 Target Country: ${country}
 Target Region/City: ${region || "any"}
 
-STRICT REJECTION RULES (set is_fit: false, score: 0 if ANY apply):
-- This is a blog, news site, magazine, or media publication
-- This is a wiki, directory, listing site, or job board
-- This is a software/app/tool download site (including 
-  piracy, torrent, or file-sharing sites)
-- This is a competitor AI/tech tool (openai, anthropic, 
-  claude, gemini, chatgpt, copilot, perplexity, etc.)
-- The company's actual location does not match 
-  "${country}" (check the content/snippet, not just domain)
-- The company's core business is completely unrelated to ${keyword || "the target industry"} (e.g. searching for Robotics but finding a train schedule, domain registrar, stock broker, or hotel)
-- The page is not about an actual operating business — 
-  it's a personal blog, forum, or unrelated content
+TWO-STEP REASONING EVALUATION:
+Step 1: Does this company genuinely operate within or closely relate to the '${keyword}' industry based on their actual content?
 
-ACCEPTANCE RULE:
-- Only mark is_fit: true if this is a REAL, operating 
-  company that operates in or relies on ${keyword || "the target industry"} and could plausibly need our services
-- Score reflects how strong the fit is based on their 
-  actual business, industry match, and location match
-- NEVER give the same score to different companies — 
-  each score must reflect genuine relative difference 
-  in fit quality
+Step 2: Think about what this type of company in '${keyword}' would realistically need. Could their actual operations plausibly use any of our services (${servicesFormatted})? Reason about THIS SPECIFIC company's real business — not generic assumptions. Consider realistic use cases (e.g. a manufacturing company might need automation or quality inspection via computer vision/perception or robotics simulation; a healthcare company might need surgical robotics, hospital logistics automation, or AI perception; a construction company might need site inspection robotics, LiDAR-inertial SLAM, or multi-sensor fusion).
+
+Only mark is_fit: true if the company passes BOTH Step 1 and Step 2.
+
+STRICT REJECTION RULES (set is_fit: false, score: 0 if ANY apply):
+- This is a directory, company aggregator, listing page, index, or company database (e.g. "List of companies", "Top X companies", "Manufacturing companies in Canada", companydata.com, disfold.com, f6s.com)
+- This is a government agency, municipal promotion board, or state investment portal (e.g. .gov, .gc.ca, "Invest in Canada", "Invest in [Country]")
+- This is a news outlet, trade publication, magazine, editorial blog, award list, or PR release (e.g. "Canadian Manufacturing", "Best Workplaces 2023", "Industry News")
+- This is a job board, recruitment agency, course provider, wiki, software download site, or stock portal
+- This is a competitor AI/tech tool (openai, anthropic, claude, gemini, chatgpt, copilot, perplexity, etc.)
+- The candidate is NOT a single operating commercial business selling products/services — it is a directory, list, media outlet, or government agency
+- The company's actual location does not match "${country}" (check content/snippet, not just domain)
+- The company fails Step 1 or Step 2 (e.g. searching for Robotics but finding a train schedule, domain registrar, stock broker, or hotel)
+
+ACCEPTANCE & MATCHING RULE:
 - Score range: 0-100, only is_fit true if score > 55
+- Select matched_service: pick the ONE specific service from our list (${servicesFormatted}) that fits this company's needs best.
+- Write match_reason: one specific line in exact format: "They likely need [X] because [specific reason based on their actual business], we provide [Y]"
 
 COMPANY NAME CLEANING:
-- Extract the actual company/organization name only
-- If title contains "//", "Contact", "About us", "Home" 
-  or similar generic words, extract only the clean 
-  business name before/around those words
-- Never return a generic phrase as the company name
+- Extract the actual clean company/organization name only.
 
 Return ONLY this JSON, nothing else:
-{"company_name": "cleaned name", "is_fit": true/false, 
-"score": 0-100, "reason": "specific one line explaining 
-the decision based on actual content, not assumption"}`;
+{
+  "company_name": "cleaned name",
+  "is_fit": true/false,
+  "score": 0-100,
+  "decision": "one line decision summary",
+  "reason": "specific one line explaining decision based on actual content",
+  "matched_service": "one specific service from OUR_SERVICES_LIST",
+  "match_reason": "They likely need [X] because [specific reason based on their actual business], we provide [Y]",
+  "outreach_angle": "suggested angle",
+  "personalization_hook": "hook based on snippet",
+  "red_flags": "none or specific flag"
+}`;
 }
 
 // ─── Parse Shared LLM JSON Response ──────────────────────────────────────────
@@ -528,7 +562,29 @@ function parseQualifierResponse(raw: string, profile: ServiceProfile): B2BQualif
   const companyName = typeof parsed.company_name === 'string' && parsed.company_name.trim().length > 1
     ? parsed.company_name.trim()
     : undefined;
-  return { company_name: companyName, is_fit: isFit, score, reason };
+  const matchedService = typeof parsed.matched_service === 'string' && parsed.matched_service.trim().length > 2
+    ? parsed.matched_service.trim()
+    : undefined;
+  const matchReason = typeof parsed.match_reason === 'string' && parsed.match_reason.trim().length > 5
+    ? parsed.match_reason.trim()
+    : undefined;
+  const decision = typeof parsed.decision === 'string' ? parsed.decision.trim() : undefined;
+  const outreachAngle = typeof parsed.outreach_angle === 'string' ? parsed.outreach_angle.trim() : undefined;
+  const personalizationHook = typeof parsed.personalization_hook === 'string' ? parsed.personalization_hook.trim() : undefined;
+  const redFlags = typeof parsed.red_flags === 'string' ? parsed.red_flags.trim() : undefined;
+
+  return {
+    company_name: companyName,
+    is_fit: isFit,
+    score,
+    decision,
+    reason,
+    matched_service: matchedService,
+    match_reason: matchReason,
+    outreach_angle: outreachAngle,
+    personalization_hook: personalizationHook,
+    red_flags: redFlags
+  };
 }
 
 // ─── Provider: GROQ (cloud, free, ~0.8s) ─────────────────────────────────────
@@ -538,12 +594,17 @@ async function validateWithGroq(
   country: string = 'Global',
   region: string = '',
   keyword: string = '',
-  retryOnRateLimit = true
+  attempt: number = 1
 ): Promise<B2BQualifierResult> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey || apiKey.length < 10) {
     console.warn('[Groq] GROQ_API_KEY missing or invalid in env — check .env.local');
-    return { is_fit: true, score: 70, reason: 'AI key missing — needs manual review.' };
+    return {
+      is_fit: true,
+      score: 0,
+      is_rate_limited: true,
+      reason: 'Qualification Failed — Retry'
+    };
   }
   let response: Response;
   try {
@@ -561,27 +622,32 @@ async function validateWithGroq(
     });
   } catch (fetchErr) {
     console.error(`[Groq] Network error for ${candidate.url}:`, fetchErr);
-    return { is_fit: true, score: 72, reason: 'Network timeout — review manually.' };
+    return {
+      is_fit: true,
+      score: 0,
+      is_rate_limited: true,
+      reason: 'Qualification Failed — Retry'
+    };
   }
 
   if (!response.ok) {
     const errText = await response.text().catch(() => '');
     console.error(`[Groq] HTTP ${response.status} for ${candidate.url}: ${errText.slice(0, 200)}`);
 
-    // Handle rate limit with 1 automatic retry after 2 seconds
-    if (response.status === 429 && retryOnRateLimit) {
-      console.warn('[Groq] Rate limit hit — retrying after 2s...');
-      await new Promise(r => setTimeout(r, 2000));
-      return validateWithGroq(candidate, profile, country, region, keyword, false);
+    // Automatic exponential backoff retries on 429 rate limit (Attempt 1: 2s, Attempt 2: 4s, Attempt 3: 8s)
+    if (response.status === 429 && attempt <= 3) {
+      const delayMs = Math.pow(2, attempt) * 1000;
+      console.warn(`[Groq Rate Limit] 429 received for ${candidate.url}. Retry ${attempt}/3 after ${delayMs}ms...`);
+      await new Promise(r => setTimeout(r, delayMs));
+      return validateWithGroq(candidate, profile, country, region, keyword, attempt + 1);
     }
 
-    if (response.status === 401) {
-      return { is_fit: true, score: 70, reason: 'AI auth error — check API key.' };
-    }
-    if (response.status === 429) {
-      return { is_fit: true, score: 75, reason: 'High demand — AI rate limited, review later.' };
-    }
-    return { is_fit: true, score: 72, reason: 'AI service error — flagged for manual review.' };
+    return {
+      is_fit: true,
+      score: 0,
+      is_rate_limited: true,
+      reason: 'Qualification Failed — Retry'
+    };
   }
 
   const data = await response.json();
@@ -612,7 +678,12 @@ async function validateWithOllama(
     signal: AbortSignal.timeout(Number(process.env.OLLAMA_TIMEOUT_MS) || 15000),
   });
   if (!response.ok) {
-    return { is_fit: true, score: 70, reason: 'Ollama unavailable — flagged for review.' };
+    return {
+      is_fit: true,
+      score: 0,
+      is_rate_limited: true,
+      reason: 'Qualification Failed — Retry'
+    };
   }
   const data = await response.json();
   const raw = data.response?.trim() || '{}';
@@ -644,7 +715,12 @@ async function validateCompany(
     }
   } catch (err) {
     console.error(`[AI Qualifier] ${provider} failed:`, err);
-    return { is_fit: true, score: 70, reason: 'AI qualifier timeout — manual review.' };
+    return {
+      is_fit: true,
+      score: 0,
+      is_rate_limited: true,
+      reason: 'Qualification Failed — Retry'
+    };
   }
 }
 
@@ -795,18 +871,15 @@ async function fetchSearXNG(
 ): Promise<SearXNGResult[]> {
   const BASE = process.env.SEARXNG_URL || 'http://localhost:8085';
   const lang = country ? (COUNTRY_LANGS[country] || 'en') : 'en';
-  const region = country ? (COUNTRY_REGIONS[country] || '') : '';
 
   const params: Record<string, string> = {
     q: query,
     format: 'json',
-    engines: 'duckduckgo,bing,yahoo,yandex',
     categories: 'general',
     language: lang,
     pageno: String(pageno),
     safesearch: '0',
   };
-  if (region) params['region'] = region;
 
   const url = `${BASE}/search?${new URLSearchParams(params).toString()}`;
   console.log(`[SearXNG] GET page=${pageno} → ${url}`);
@@ -839,16 +912,14 @@ function humanDelay(): Promise<void> {
 }
 
 // ─── Query Mutation Vectors for WTechX Discovery Engine ──────────────────────
-const NAV_SIGNALS = '("contact" OR "about" OR "solutions" OR "products")';
-
 const QUERY_MUTATIONS = [
-  (k: string, c: string) => `${k} company ${c} ${NAV_SIGNALS}`.replace(/\s+/g, ' ').trim(),
-  (k: string, c: string) => `${k} manufacturer ${c} ${NAV_SIGNALS}`.replace(/\s+/g, ' ').trim(),
-  (k: string, c: string) => `${k} supplier ${c} ${NAV_SIGNALS}`.replace(/\s+/g, ' ').trim(),
-  (k: string, c: string) => `${k} solutions ${c} ${NAV_SIGNALS}`.replace(/\s+/g, ' ').trim(),
-  (k: string, c: string) => `${k} enterprise ${c} ${NAV_SIGNALS}`.replace(/\s+/g, ' ').trim(),
-  (k: string, c: string) => `corporate B2B ${k} ${c} ${NAV_SIGNALS}`.replace(/\s+/g, ' ').trim(),
-  (k: string, c: string) => `${k} systems ${c} ${NAV_SIGNALS}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} company ${c}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} corporate ${c}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} manufacturer ${c}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} solutions ${c}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} enterprise ${c}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `B2B ${k} ${c}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} systems ${c}`.replace(/\s+/g, ' ').trim(),
 ];
 
 // ─── Core Discovery ───────────────────────────────────────────────────────────
@@ -875,7 +946,9 @@ async function discoverCompanies(
     console.log(`[Cursor] Cache-clear triggered. Reset cursor for "${queryKey}".`);
   }
 
-  const processedSet = new Set<string>(ledger.processed_domains.map(d => d.toLowerCase()));
+  const processedSet = new Set<string>(
+    resetCursor ? [] : ledger.processed_domains.map(d => d.toLowerCase())
+  );
   const lastPage = ledger.query_progress[queryKey] ?? 0;
   const startPage = lastPage + 1;
 
@@ -889,7 +962,10 @@ async function discoverCompanies(
   // Candidate buffer
   const candidates: {
     name: string; website: string; domain: string;
-    snippet: string; trustScore: number; email?: string; phone?: string;
+    snippet: string; trustScore: number; isRateLimited?: boolean;
+    email?: string; phone?: string;
+    matchedService?: string; matchReason?: string;
+    outreachAngle?: string; personalizationHook?: string; redFlags?: string;
   }[] = [];
 
   let currentPage = startPage;
@@ -962,9 +1038,13 @@ async function discoverCompanies(
         currentPage = 1;
       }
     }
-    // ── Stage 2: Micro-batch AI Qualifier (4 concurrent) ──
+    // ── Stage 2: Micro-batch AI Qualifier (4 concurrent + 500ms pacing delay) ──
     const BATCH_SIZE = 4;
     for (let bi = 0; bi < survivors.length && candidates.length < targetCount; bi += BATCH_SIZE) {
+      if (bi > 0) {
+        // Pacing delay between micro-batches to prevent API rate limits
+        await new Promise(r => setTimeout(r, 500));
+      }
       const batch = survivors.slice(bi, bi + BATCH_SIZE);
       const batchResults = await Promise.all(
         batch.map(async (item) => {
@@ -987,11 +1067,21 @@ async function discoverCompanies(
         if (candidates.length >= targetCount) break;
         const name = qualResult.company_name || cleanCompanyName(item.title, domain);
         const contacts = extractContacts(item.content || '');
+        const isRateLimited = Boolean(qualResult.is_rate_limited);
+        const trustScore = isRateLimited ? 0 : qualResult.score;
+        const reason = isRateLimited ? 'Qualification Failed — Retry' : (qualResult.reason || (item.content || '').slice(0, 300).trim());
+
         candidates.push({
           name, website: item.url, domain,
-          snippet: qualResult.reason || (item.content || '').slice(0, 300).trim(),
-          trustScore: qualResult.score,
+          snippet: reason,
+          trustScore: trustScore,
+          isRateLimited: isRateLimited,
           email: contacts.email, phone: contacts.phone,
+          matchedService: qualResult.matched_service,
+          matchReason: qualResult.match_reason,
+          outreachAngle: qualResult.outreach_angle,
+          personalizationHook: qualResult.personalization_hook,
+          redFlags: qualResult.red_flags,
         });
         addedThisPage++;
       }
@@ -1025,7 +1115,7 @@ async function discoverCompanies(
         });
         if (r.ok) {
           const d = await r.json();
-          if (d.summary?.length > 10) crawlSnippet = d.summary;
+          if (!crawlSnippet && d.summary?.length > 10) crawlSnippet = d.summary;
           if (d.email) crawlEmail = d.email;
           if (d.phone) crawlPhone = d.phone;
           if (d.linkedin_url) crawlLinkedin = d.linkedin_url;
@@ -1034,6 +1124,10 @@ async function discoverCompanies(
       } catch {
         // silent fallback — search snippet is used
       }
+
+      const isRateLimited = Boolean(c.isRateLimited || c.snippet?.includes('Qualification Failed'));
+      const finalTrustScore = isRateLimited ? 0 : (c.trustScore ?? 80);
+      const finalTrustStatus = isRateLimited ? 'Pending Review' : (finalTrustScore >= 80 ? 'High Fit' : 'Medium Fit');
 
       return {
         id: `co-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
@@ -1044,15 +1138,21 @@ async function discoverCompanies(
         industry: keyword,
         country: cleanCountry || 'Global',
         snippet: crawlSnippet || `${c.name} is a company operating in the ${keyword} industry.`,
-        trustScore: c.trustScore || 80,
-        fit_score: c.trustScore || 80,
-        trustStatus: (c.trustScore || 80) >= 80 ? 'High Fit' : 'Medium Fit',
+        trustScore: finalTrustScore,
+        fit_score: finalTrustScore,
+        trustStatus: finalTrustStatus,
         initials: getInitials(c.name),
         logoUrl: `https://logo.clearbit.com/${c.domain}`,
         email: crawlEmail,
         phone: crawlPhone,
         linkedin: crawlLinkedin,
         contactSource: crawlSource,
+        enriched: Boolean(crawlEmail || crawlPhone),
+        matchedService: c.matchedService,
+        matchReason: c.matchReason,
+        outreachAngle: c.outreachAngle,
+        personalizationHook: c.personalizationHook,
+        redFlags: c.redFlags,
       } as CompanyResult;
     })
   ).then(results => results.filter(Boolean) as CompanyResult[]);
