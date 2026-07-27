@@ -429,16 +429,6 @@ function CompanyCard({
         )}
       </div>
 
-      {/* Trust Score / Qualification Status */}
-      {company.trustStatus === 'Pending Review' || (company.trustScore ?? 0) === 0 ? (
-        <div className="flex items-center justify-between text-[12px] bg-amber-50 border border-amber-200/80 rounded-xl px-3 py-1.5 text-amber-900 font-medium">
-          <span className="flex items-center gap-1.5 text-[11px]">
-            <span className="material-symbols-outlined text-[14px] text-amber-600">pending_actions</span>
-            AI Qualification: Pending Review
-          </span>
-          <span className="text-[10.5px] font-semibold bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded">Retry Later</span>
-        </div>
-      ) : null}
 
       {/* Meta row */}
       <div className="flex items-center justify-between text-[12px] text-secondary">
@@ -773,10 +763,11 @@ export default function DiscoverPage() {
         rawCompanies = data.results;
       }
 
-      // ── Client-side minTrust filter ─────────────────────────────────────────
+      // ── Client-side filter: Only keep successfully qualified companies ───────
+      const qualifiedOnly = rawCompanies.filter((c) => c.trustStatus !== 'Pending Review' && (c.trustScore ?? 0) > 0);
       const newCompanies: Company[] = minTrust > 0
-        ? rawCompanies.filter((c) => (c.trustScore ?? 0) >= minTrust)
-        : rawCompanies;
+        ? qualifiedOnly.filter((c) => (c.trustScore ?? 0) >= minTrust)
+        : qualifiedOnly;
 
       setCompanies(newCompanies);
       if (isSubsequent) {

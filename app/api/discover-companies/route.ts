@@ -5,6 +5,9 @@ import path from 'path';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+// Configurable target company count constant shared across AI providers
+export const TARGET_COMPANY_COUNT = 20;
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface SearXNGResult {
   title: string;
@@ -309,7 +312,6 @@ function getCountryIntelligence(country: string) {
 }
 
 // ─── Fast Pre-Filter ──────────────────────────────────────────────────────────
-// ─── Fast Pre-Filter ──────────────────────────────────────────────────────────
 const QUICK_JUNK_TOKENS = [
   // Informational & Dictionary content
   'wiki', 'dictionary', 'definition', 'blog', 'news', 'article',
@@ -319,6 +321,21 @@ const QUICK_JUNK_TOKENS = [
   'list of', 'directory of', 'companies in', 'vendors in', 'suppliers in', 'manufacturers in',
   'hinative', 'weblio', 'kotobank', '例文', '意味', '使い方', '辞書', '対義語', '類語',
   'meaning of', 'definition of', 'what is', 'examples of', 'synonyms', 'antonyms',
+  // Consulting & Advisory firms (accounting, legal, consulting, staffing)
+  'consulting firm', 'advisory firm', 'management consulting', 'tax advisory', 'legal services',
+  'accounting firm', 'staffing agency', 'recruitment agency', 'executive search',
+  // B2B Directories & Aggregators
+  'b2b directory', 'supplier directory', 'manufacturer directory', 'company directory', 'vendor directory',
+  'business directory', 'yellow pages', 'chamber of commerce', 'board of trade',
+  // Industry Associations & Trade Bodies (generalized)
+  'globalautomakers', 'automakers of', 'trade association', 'industry association', 'automakers council',
+  'manufacturers association', 'exporters association', 'society of', 'federation of',
+  // Research & Index Organizations (generalized across all industries)
+  'index on', 'performance index', 'national index', 'global index', 'industry index', 'sector index',
+  'performance tracker', 'research initiative', 'reporting initiative', 'performance metrics',
+  'observatory', 'benchmark body', 'benchmarking', 'benchmark report',
+  'industry report', 'sector report', 'performance council', 'reporting council',
+  'task force', 'working group', 'policy index',
   // Career & job boards
   'jobs', '/job/', 'careers', 'recruiting', 'hiring', 'vacancy',
   // Events, exhibitions, competitions
@@ -341,6 +358,8 @@ const QUICK_JUNK_TOKENS = [
   // URL junk path signals
   '-inurl', '/skill-areas/', '/resources/', '/company/newsroom',
   '/news/', '/press/', '/media/', '/insights/', '/research/',
+  '/companies/', '/company-directory/', '/company-list/', '/company-search/',
+  '/type/', '/list/', '/category/', '/categories/', '/directory/',
 ];
 
 const JUNK_DOMAINS = new Set([
@@ -349,19 +368,31 @@ const JUNK_DOMAINS = new Set([
   'angel.co', 'wellfound.com', 'otta.com', 'remoteok.com',
   'jobsintech.io', 'eurojobs.com', 'itvjob.de',
   // Directories, aggregators & B2B platforms
+  'builtin.com', 'builtintoronto.com', 'builtinchicago.com', 'builtinla.com',
+  'builtinnyc.com', 'builtinboston.com', 'builtincolorado.com', 'builtinaustin.com',
+  'builtinsf.com', 'builtinseattle.com',
   'clutch.co', 'g2.com', 'capterra.com', 'goodfirms.co', 'sortlist.com',
   'trustpilot.com', 'yelp.com', 'glassdoor.com',
   'icmagroup.org', 'impriindia.com', 'samcorporate.com', 'flagright.com',
-  'trademo.com', 'kompass.com', 'europages.com', 'thomasnet.com',
+  'trademo.com', 'kompass.com', 'ca.kompass.com', 'us.kompass.com', 'fr.kompass.com',
+  'europages.com', 'thomasnet.com',
   'alibaba.com', 'made-in-china.com', 'globalsources.com', 'dnb.com',
-  'indiamart.com', 'tradekey.com', 'importers.com', 'yellowpages.com',
+  'indiamart.com', 'tradekey.com', 'importers.com', 'yellowpages.com', 'yp.ca',
   'pagesjaunes.fr', 'wlw.de', 'wlw.at', 'dunsguide.com', 'zoominfo.com',
   'crunchbase.com', 'pitchbook.com', 'tracxn.com', 'exporthub.com',
-  'companydata.com', 'disfold.com', 'f6s.com', 'aeroleads.com',
-  // News, trade publications, award lists & government portals
-  'canadianmanufacturing.com', 'investcanada.ca', 'investincanada.com',
-  'greatplacetowork.ca', 'greatplacetowork.com', 'thelogic.co',
+  'companydata.com', 'disfold.com', 'f6s.com', 'aeroleads.com', 'ensun.io', 'lusha.com',
+  'apollo.io', 'cognism.com', 'lead411.com', 'salesql.com', 'uplead.com', 'seamless.ai',
+  'rocketreach.co', 'signalhire.com', 'zippia.com',
+  // Municipal & regional government / economic development portals & associations
+  'yorklink.ca', 'waterlooedc.ca', 'globalautomakers.ca', 'investcanada.ca', 'investincanada.com', 'greatplacetowork.ca', 'greatplacetowork.com',
+  // News, trade publications, associations, consulting & event portals
+  'canadianmanufacturing.com', 'thelogic.co',
   'newswire.ca', 'globalbankingandfinance.com',
+  'cme-mec.ca', 'sme.org', 'plant.ca', 'cmts.ca', 'ngen.ca', 'emccanada.org',
+  'bdo.ca', 'bdo.com', 'imercer.com', 'mercer.com', 'pwc.com', 'pwc.ca', 'deloitte.com', 'deloitte.ca',
+  'ey.com', 'ey.ca', 'kpmg.com', 'kpmg.ca', 'cgi.com', 'mckinsey.com', 'accenture.com', 'bain.com',
+  'bcg.com', 'oliverwyman.com', 'fticonsulting.com', 'protiviti.com', 'rsm.global', 'rsm.ca', 'rsmus.com',
+  'grantthornton.ca', 'grantthornton.com', 'bakertilly.ca', 'bakertilly.com', 'mnp.ca',
   // Consumer retail, department stores & non-target e-commerce
   'marksandspencer.com', 'm-s.com', 'walmart.com', 'target.com',
   'amazon.com', 'ebay.com', 'etsy.com', 'costco.com', 'macys.com',
@@ -371,6 +402,8 @@ const JUNK_DOMAINS = new Set([
 function isHostBlacklisted(host: string, blackList: Set<string>): boolean {
   const cleanHost = host.toLowerCase().replace(/^www\./, '');
   if (blackList.has(cleanHost)) return true;
+  // Prefix / subdomain matching for builtin aggregator variations
+  if (/^builtin/i.test(cleanHost) || cleanHost.includes('builtin')) return true;
   const parts = cleanHost.split('.');
   if (parts.length > 2) {
     const parentDomain = parts.slice(-2).join('.');
@@ -381,14 +414,28 @@ function isHostBlacklisted(host: string, blackList: Set<string>): boolean {
 
 function isQuickJunk(title: string = '', url: string = ''): boolean {
   const combined = `${title} ${url}`.toLowerCase();
-  // Domain-level check first
   try {
-    const domain = new URL(url).hostname.replace(/^www\./, '');
-    if (domain.endsWith('.gov') || domain.endsWith('.gc.ca') || domain.endsWith('.gov.ca') || domain.endsWith('.gov.uk') || domain.endsWith('.gov.au') || domain.endsWith('.gov.in')) return true;
-    if (isHostBlacklisted(domain, JUNK_DOMAINS) || isHostBlacklisted(domain, HARD_BLACKLIST)) return true;
+    const parsedUrl = new URL(url);
+    const domain = parsedUrl.hostname.replace(/^www\./, '').toLowerCase();
+    const pathname = parsedUrl.pathname.toLowerCase();
+
+    // 1. TLD & Government subdomain checks (includes .canada.ca, .gc.ca, .gov.ca, etc.)
+    if (domain.endsWith('.canada.ca') || domain === 'canada.ca' || domain.endsWith('.gc.ca') || domain === 'gc.ca' || /\.(gov|gov\.ca|gov\.uk|gov\.au|gov\.in|gov\.sg|gov\.ae|gov\.pk|mun\.ca|gouv\.qc\.ca|gov\.on\.ca|gov\.bc\.ca|gov\.ab\.ca|gov\.mb\.ca|gov\.sk\.ca|gov\.ns\.ca|gov\.nb\.ca|gov\.nl\.ca|gov\.pe\.ca)$/i.test(domain)) return true;
+    
+    // 2. Blacklisted domain check (aggregators, directories, job boards, associations, municipal EDCs, consulting firms)
+    if (isHostBlacklisted(domain, JUNK_DOMAINS) || isHostBlacklisted(domain, HARD_BLACKLIST) || domain.endsWith('edc.ca') || domain.includes('waterlooedc') || domain.includes('globalautomakers')) return true;
+
+    // 3. Path-level directory, aggregator, consulting, & listing page pattern checks
+    if (/\/(companies|company-directory|company-list|company-search|type|list|category|categories|directory|top-[^\/]+|best-[^\/]+|companies-in-[^\/]+|search|suppliers|manufacturers|vendors|industry\/[^\/]+|industries\/[^\/]+|consulting|advisory|catalogue|catalog|yellow-pages)(\/|$|\.)/i.test(pathname)) return true;
+
+    // 4. Municipal & regional government / economic development content patterns
+    if (/\b(regional municipality|municipality of|city of|county of|town of|township of|economic development|investment board|government of|municipal government|regional government|regional council|municipal council|economic board|economic initiative|regional economic|investment portal|investment agency|economic development corporation|waterloo edc|york region)\b/i.test(combined)) return true;
+
+    // 5. Industry Association, Trade Group, Consulting, & Directory content patterns
+    if (/\b(global automakers|automakers of|trade association|industry association|manufacturers association|automakers council|consulting firm|advisory firm|management consulting|accounting firm|law firm|legal services|staffing agency|recruitment agency|executive search|b2b directory|supplier directory|manufacturer directory|company directory|business directory|chamber of commerce|board of trade)\b/i.test(combined)) return true;
   } catch { /* ignore */ }
 
-  // Regex check for top N / best N lists / awards / directories
+  // 6. Regex check for top N / best N lists / awards / directories
   if (/\b(top\s+\d+|\d+\s+best|best\s+\d+|list\s+of|companies\s+in|best\s+workplaces|invest\s+in)\b/i.test(combined)) return true;
 
   return QUICK_JUNK_TOKENS.some(token => combined.includes(token));
@@ -498,7 +545,7 @@ function buildQualifierPrompt(
 Our services list (${OUR_COMPANY_NAME} capabilities):
 ${servicesFormatted}
 
-Your job is to strictly decide if this candidate is a GENUINE potential business client for us by evaluating in TWO STEPS:
+Your job is to strictly decide if this candidate is a GENUINE potential business client for us by evaluating in THREE STEPS:
 
 Candidate Information:
 URL: ${candidate.url}
@@ -508,22 +555,37 @@ Target Industry/Keyword: ${keyword || "Business"}
 Target Country: ${country}
 Target Region/City: ${region || "any"}
 
-TWO-STEP REASONING EVALUATION:
+THREE-STEP REASONING EVALUATION:
 Step 1: Does this company genuinely operate within or closely relate to the '${keyword}' industry based on their actual content?
 
 Step 2: Think about what this type of company in '${keyword}' would realistically need. Could their actual operations plausibly use any of our services (${servicesFormatted})? Reason about THIS SPECIFIC company's real business — not generic assumptions. Consider realistic use cases (e.g. a manufacturing company might need automation or quality inspection via computer vision/perception or robotics simulation; a healthcare company might need surgical robotics, hospital logistics automation, or AI perception; a construction company might need site inspection robotics, LiDAR-inertial SLAM, or multi-sensor fusion).
 
-Only mark is_fit: true if the company passes BOTH Step 1 and Step 2.
+Step 3 — RELATIONSHIP TYPE CHECK:
+Beyond checking if this is a real company in the industry and could use our services, also determine the nature of the company:
+- Is this a genuine potential CUSTOMER who would directly buy/use our services? → proceed with is_fit: true
+- Is this an INDEX, RESEARCH INITIATIVE, PERFORMANCE TRACKER, OBSERVATORY, BENCHMARKING BODY, or REPORTING COUNCIL (e.g. "National Index on Agri-Food Performance", "Performance Tracker", "Agri-Food Index", "Industry Performance Observatory")? → is_fit: false, reason: "Research index/reporting body, not an operating business"
+- Is this a MUNICIPAL or REGIONAL GOVERNMENT authority, economic development corporation, or city/county portal (e.g. "York Region", "yorklink.ca", "City of...", "Regional Municipality of...", "Invest in [Region]")? → is_fit: false, reason: "Government/municipal authority page, not an operating business"
+- Is this a DIRECTORY LISTING PAGE or AGGREGATOR PLATFORM (e.g. Built In, Clutch, F6S, YellowPages, Lusha, or URL path containing /companies/, /type/, /list/, /directory/)? → is_fit: false, reason: "Directory listing page, not a direct company site"
+- Is this a CONSULTING/ADVISORY firm that serves this industry (accounting, consulting, professional services firms like BDO, PwC, Mercer, Deloitte, EY, KPMG) rather than operating in it themselves? → is_fit: false, reason: "Consulting/advisory firm, not a direct customer"
+- Is this an INDUSTRY ASSOCIATION, TRADE BODY, or PROFESSIONAL SOCIETY (e.g. "Manufacturers & Exporters," "Society of X Engineers," non-profit industry groups like CME, SME, NGen, EMC)? → is_fit: false, reason: "Industry association, not a direct customer"
+- Is this a TRADE PUBLICATION, MAGAZINE, or MEDIA OUTLET (e.g. "Plant Magazine", plant.ca)? → is_fit: false, reason: "Trade publication/media, not a company"
+- Is this an EVENT ORGANIZER or TRADE SHOW (e.g. CMTS)? → is_fit: false, reason: "Event organizer, not a direct customer"
+
+Only mark is_fit: true if the company passes Steps 1, 2, AND 3.
 
 STRICT REJECTION RULES (set is_fit: false, score: 0 if ANY apply):
-- This is a directory, company aggregator, listing page, index, or company database (e.g. "List of companies", "Top X companies", "Manufacturing companies in Canada", companydata.com, disfold.com, f6s.com)
-- This is a government agency, municipal promotion board, or state investment portal (e.g. .gov, .gc.ca, "Invest in Canada", "Invest in [Country]")
-- This is a news outlet, trade publication, magazine, editorial blog, award list, or PR release (e.g. "Canadian Manufacturing", "Best Workplaces 2023", "Industry News")
+- This is a directory listing page, aggregator platform, company directory, category index, or profile page on an aggregator platform (Built In, Clutch, F6S, Crunchbase, YellowPages, Lusha, etc.) or URL path contains /companies/, /type/, /company-directory/, /list/, /directory/, /search/
+- This is an index, research initiative, performance tracker, benchmarking body, observatory, reporting council, industry association, trade group, task force, or non-operating research/policy entity (e.g., 'National Index on...', 'Performance Tracker', 'Agri-Food Performance Index', 'Manufacturing Performance Council', 'Industry Observatory'). Generalized across ALL industries
+- This is a government agency, municipal authority, regional municipality, economic development board, city/county promotion page, or state investment portal (e.g., 'York Region', 'yorklink.ca', 'City of...', 'Regional Municipality of...', 'Economic Development Corporation', 'Invest in [Region]'). Reject regardless of whether the domain ends in .gov or .ca
+- This is a consulting or advisory firm (PwC, BDO, Mercer, Deloitte, EY, KPMG, McKinsey, Accenture, etc.) that serves manufacturers rather than being a manufacturer itself
+- This is an industry association, trade group, professional society, or non-profit consortium (CME, SME, NGen, EMC, etc.)
+- This is a trade publication, magazine, news outlet, or media site (Plant Magazine, plant.ca, etc.)
+- This is an event organizer, trade show, conference, or exhibition (CMTS, etc.)
 - This is a job board, recruitment agency, course provider, wiki, software download site, or stock portal
 - This is a competitor AI/tech tool (openai, anthropic, claude, gemini, chatgpt, copilot, perplexity, etc.)
-- The candidate is NOT a single operating commercial business selling products/services — it is a directory, list, media outlet, or government agency
+- The candidate is NOT a single operating commercial business selling products/services — it is a directory, list, media outlet, consulting firm, industry association, index body, or government agency
 - The company's actual location does not match "${country}" (check content/snippet, not just domain)
-- The company fails Step 1 or Step 2 (e.g. searching for Robotics but finding a train schedule, domain registrar, stock broker, or hotel)
+- The company fails Step 1, Step 2, or Step 3
 
 ACCEPTANCE & MATCHING RULE:
 - Score range: 0-100, only is_fit true if score > 55
@@ -588,6 +650,35 @@ function parseQualifierResponse(raw: string, profile: ServiceProfile): B2BQualif
 }
 
 // ─── Provider: GROQ (cloud, free, ~0.8s) ─────────────────────────────────────
+export let globalGroq429Count = 0;
+
+export function resetGroq429Count() {
+  globalGroq429Count = 0;
+}
+
+function parseGroqRetryDelay(errText: string, retryAfterHeader: string | null): number {
+  if (retryAfterHeader) {
+    const sec = parseFloat(retryAfterHeader);
+    if (!isNaN(sec) && sec > 0) {
+      return Math.ceil(sec * 1000) + 500;
+    }
+  }
+  if (errText) {
+    // Extract wait time from Groq error message e.g. "Please try again in 5.7s" or "in 500ms"
+    const match = errText.match(/try again in ([0-9]+(?:\.[0-9]+)?)\s*(s|ms)?/i) ||
+                  errText.match(/in ([0-9]+(?:\.[0-9]+)?)\s*(s|ms)/i);
+    if (match) {
+      const val = parseFloat(match[1]);
+      const unit = (match[2] || 's').toLowerCase();
+      if (!isNaN(val)) {
+        const ms = unit === 'ms' ? val : val * 1000;
+        return Math.ceil(ms) + 500; // Exact suggested wait time + 500ms safety buffer
+      }
+    }
+  }
+  return 0;
+}
+
 async function validateWithGroq(
   candidate: { title: string; description: string; url: string },
   profile: ServiceProfile,
@@ -615,7 +706,7 @@ async function validateWithGroq(
         model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
         messages: [{ role: 'user', content: buildQualifierPrompt(candidate, profile, country, region, keyword) }],
         temperature: 0,
-        max_tokens: 150,
+        max_tokens: 450,
         response_format: { type: 'json_object' },
       }),
       signal: AbortSignal.timeout(12000),
@@ -623,7 +714,7 @@ async function validateWithGroq(
   } catch (fetchErr) {
     console.error(`[Groq] Network error for ${candidate.url}:`, fetchErr);
     return {
-      is_fit: true,
+      is_fit: false,
       score: 0,
       is_rate_limited: true,
       reason: 'Qualification Failed — Retry'
@@ -632,18 +723,22 @@ async function validateWithGroq(
 
   if (!response.ok) {
     const errText = await response.text().catch(() => '');
-    console.error(`[Groq] HTTP ${response.status} for ${candidate.url}: ${errText.slice(0, 200)}`);
+    console.error(`[Groq] HTTP ${response.status} for ${candidate.url}: ${errText}`);
 
-    // Automatic exponential backoff retries on 429 rate limit (Attempt 1: 2s, Attempt 2: 4s, Attempt 3: 8s)
+    // Parse Groq's actual suggested wait time from response text/header + 500ms buffer
     if (response.status === 429 && attempt <= 3) {
-      const delayMs = Math.pow(2, attempt) * 1000;
-      console.warn(`[Groq Rate Limit] 429 received for ${candidate.url}. Retry ${attempt}/3 after ${delayMs}ms...`);
+      globalGroq429Count++;
+      const retryHeader = response.headers.get('retry-after');
+      const parsedDelay = parseGroqRetryDelay(errText, retryHeader);
+      const delayMs = parsedDelay > 0 ? parsedDelay : (Math.pow(2, attempt) * 1500 + 500);
+
+      console.warn(`[Groq Rate Limit] 429 received for ${candidate.url} (Total 429s: ${globalGroq429Count}). Waiting ${delayMs}ms (Parsed suggested wait: ${parsedDelay > 0 ? `${parsedDelay - 500}ms + 500ms buffer` : 'fallback'}). Retry ${attempt}/3...`);
       await new Promise(r => setTimeout(r, delayMs));
       return validateWithGroq(candidate, profile, country, region, keyword, attempt + 1);
     }
 
     return {
-      is_fit: true,
+      is_fit: false,
       score: 0,
       is_rate_limited: true,
       reason: 'Qualification Failed — Retry'
@@ -727,16 +822,20 @@ async function validateCompany(
 
 function isValidBusinessUrl(url: string): boolean {
   try {
-    const { hostname } = new URL(url);
-    const domain = hostname.toLowerCase().replace(/^www\./, '');
+    const parsedUrl = new URL(url);
+    const domain = parsedUrl.hostname.toLowerCase().replace(/^www\./, '');
+    const pathname = parsedUrl.pathname.toLowerCase();
 
-    // Strip academic / government TLDs globally
-    if (/\.(gov|edu|mil|ac\.uk|edu\.au|gov\.uk|gov\.ca|ac\.jp|go\.jp|ed\.jp|ac\.kr|ac\.cn|ac\.nz|edu\.sg|edu\.in|ac\.in)$/i.test(domain)) return false;
-    // Also catch subdomains of academic institutions (e.g. brain.kyutech.ac.jp)
+    // Strip academic / government TLDs & subdomains globally (including .canada.ca, .gc.ca, .gov.ca)
+    if (domain.endsWith('.canada.ca') || domain === 'canada.ca' || domain.endsWith('.gc.ca') || domain === 'gc.ca' || /\.(gov|gov\.ca|gov\.uk|gov\.au|gov\.in|gov\.sg|gov\.ae|gov\.pk|mun\.ca|gouv\.qc\.ca|gov\.on\.ca|gov\.bc\.ca|gov\.ab\.ca|gov\.mb\.ca|gov\.sk\.ca|gov\.ns\.ca|gov\.nb\.ca|gov\.nl\.ca|gov\.pe\.ca|edu|mil|ac\.uk|edu\.au|ac\.jp|go\.jp|ed\.jp|ac\.kr|ac\.cn|ac\.nz|edu\.sg|edu\.in|ac\.in)$/i.test(domain)) return false;
+    // Catch subdomains of academic/gov institutions
     if (/\.ac\.jp$/i.test(domain) || /\.go\.jp$/i.test(domain)) return false;
 
-    // Hard blacklist
-    if (isHostBlacklisted(domain, HARD_BLACKLIST)) return false;
+    // Hard blacklist & junk domain checks
+    if (isHostBlacklisted(domain, HARD_BLACKLIST) || isHostBlacklisted(domain, JUNK_DOMAINS)) return false;
+
+    // Reject directory listing URL paths (Issue 1)
+    if (/\/(companies|company-directory|company-list|company-search|type|list|category|categories|directory|top-[^\/]+|best-[^\/]+|companies-in-[^\/]+|search|suppliers|manufacturers|vendors|industry\/[^\/]+|industries\/[^\/]+)(\/|$)/i.test(pathname)) return false;
 
     return true;
   } catch {
@@ -803,8 +902,31 @@ function getInitials(name: string): string {
   return name.split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
 }
 
+const INVALID_EMAIL_EXTENSIONS = new Set([
+  'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp', 'tif', 'tiff',
+  'css', 'js', 'woff', 'woff2', 'ttf', 'eot', 'mp4', 'webm', 'pdf', 'zip'
+]);
+
+const EMAIL_EXCLUDED_KEYWORDS = [
+  'bootstrap', 'jquery', 'wp-content', 'theme', 'plugin', 'template',
+  'example.com', 'yourdomain', 'logo', 'noreply', 'no-reply', 'sentry',
+  'wixpress.com', 'schema.org', 'sprite', 'retina', 'w3.org', 'domain.com', 'email.com'
+];
+
+function isValidEmail(email: string): boolean {
+  if (!email || typeof email !== 'string') return false;
+  const clean = email.trim().toLowerCase();
+  if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(clean)) return false;
+  if (/@\d+(\.\d+)?x/i.test(clean)) return false; // Reject retina image syntax like @2x, @3x
+  const ext = clean.split('.').pop() || '';
+  if (INVALID_EMAIL_EXTENSIONS.has(ext)) return false;
+  if (EMAIL_EXCLUDED_KEYWORDS.some(kw => clean.includes(kw))) return false;
+  return true;
+}
+
 function extractContacts(text: string): { email?: string; phone?: string } {
-  const email = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0];
+  const allEmails = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+  const email = allEmails.find(em => isValidEmail(em));
 
   const phoneMatches = text.match(/(\+?[\d][\d\s\-\.\(\)]{6,18}[\d])/g) || [];
   let phone: string | undefined;
@@ -906,7 +1028,7 @@ async function fetchSearXNG(
 
 // ─── Humanized Inter-Page Delay ───────────────────────────────────────────────
 function humanDelay(): Promise<void> {
-  const ms = 1500 + Math.random() * 1000;
+  const ms = 300 + Math.random() * 400;
   console.log(`[Throttle] ${Math.round(ms)} ms pause`);
   return new Promise(r => setTimeout(r, ms));
 }
@@ -914,25 +1036,31 @@ function humanDelay(): Promise<void> {
 // ─── Query Mutation Vectors for WTechX Discovery Engine ──────────────────────
 const QUERY_MUTATIONS = [
   (k: string, c: string) => `${k} company ${c}`.replace(/\s+/g, ' ').trim(),
-  (k: string, c: string) => `${k} corporate ${c}`.replace(/\s+/g, ' ').trim(),
   (k: string, c: string) => `${k} manufacturer ${c}`.replace(/\s+/g, ' ').trim(),
-  (k: string, c: string) => `${k} solutions ${c}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} supplier ${c}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} industrial ${c}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} plant ${c}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} factory ${c}`.replace(/\s+/g, ' ').trim(),
   (k: string, c: string) => `${k} enterprise ${c}`.replace(/\s+/g, ' ').trim(),
-  (k: string, c: string) => `B2B ${k} ${c}`.replace(/\s+/g, ' ').trim(),
   (k: string, c: string) => `${k} systems ${c}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} solutions ${c}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `B2B ${k} ${c}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `${k} corporate ${c}`.replace(/\s+/g, ' ').trim(),
+  (k: string, c: string) => `top ${k} companies ${c}`.replace(/\s+/g, ' ').trim(),
 ];
 
 // ─── Core Discovery ───────────────────────────────────────────────────────────
 async function discoverCompanies(
   keyword: string,
   country: string,
-  targetCount: number,
+  targetCount: number = TARGET_COMPANY_COUNT,
   startTime: number,
   resetCursor: boolean = false,
   profile: ServiceProfile = getServiceProfile(),
   city: string = ''
 ): Promise<CompanyResult[]> {
 
+  resetGroq429Count();
   const cleanCountry = country && country !== 'All Countries' ? country : '';
   const cleanCity = city ? city.trim() : '';
   const searchLocation = cleanCity ? `${cleanCity}, ${cleanCountry}`.trim() : cleanCountry;
@@ -971,12 +1099,12 @@ async function discoverCompanies(
   let currentPage = startPage;
   let consecutiveEmpty = 0;
   let lastGoodPage = lastPage;
-  const hardPageLimit = startPage + 25; // Continuous offset advancement limit
+  const hardPageLimit = startPage + 40; // Continuous offset advancement limit
 
   // ── Guaranteed buffer-fill while loop ────────────────────────────────────
   while (candidates.length < targetCount && currentPage <= hardPageLimit) {
-    if (Date.now() - startTime > 44_000) {
-      console.warn('[Loop] Time limit approaching — stopping early.');
+    if (Date.now() - startTime > 360_000) {
+      console.warn('[Loop] Safety time limit (360s / 6m) approaching — stopping loop.');
       break;
     }
 
@@ -985,22 +1113,17 @@ async function discoverCompanies(
     // 3. Graceful Engine Offset Bounds Handler
     if (rawResults.length === 0) {
       consecutiveEmpty++;
-      console.log(`[Loop] Page ${currentPage}: empty (${consecutiveEmpty}/2 consecutive)`);
-      if (consecutiveEmpty >= 2) {
-        mutationSeed = (mutationSeed + 1) % QUERY_MUTATIONS.length;
-        if (mutationSeed === 0 && candidates.length >= 5) {
-          console.log('[Loop] Engine offset bounds reached across query vectors. Returning collected candidates.');
-          break;
-        }
-        currentQuery = QUERY_MUTATIONS[mutationSeed](keyword, searchLocation);
-        console.log(`[Query Vector Switch] Advancing to mutation vector #${mutationSeed}: "${currentQuery}" from page 1.`);
-        currentPage = 1;
-        consecutiveEmpty = 0;
-        await humanDelay();
-        continue;
+      console.log(`[Loop] Page ${currentPage}: empty query vector hit.`);
+      mutationSeed = (mutationSeed + 1) % QUERY_MUTATIONS.length;
+      if (mutationSeed === 0 && candidates.length >= targetCount) {
+        console.log('[Loop] Target reached across query vectors.');
+        break;
       }
+      currentQuery = QUERY_MUTATIONS[mutationSeed](keyword, searchLocation);
+      console.log(`[Query Vector Switch] Advancing to mutation vector #${mutationSeed}: "${currentQuery}" from page 1.`);
+      currentPage = 1;
+      consecutiveEmpty = 0;
       await humanDelay();
-      currentPage++;
       continue;
     }
 
@@ -1028,63 +1151,58 @@ async function discoverCompanies(
 
     console.log(`[PreFilter] Page ${currentPage}: ${rawResults.length} raw → ${survivors.length} survivors for AI`);
 
-    // If a query vector yields < 2 survivors for high-competition terms, mutate vector quickly
-    if (survivors.length < 2 && candidates.length < targetCount) {
-      const nextSeed = (mutationSeed + 1) % QUERY_MUTATIONS.length;
-      if (nextSeed !== mutationSeed) {
-        mutationSeed = nextSeed;
-        currentQuery = QUERY_MUTATIONS[mutationSeed](keyword, searchLocation);
-        console.log(`[Low Survivors Adaptive Switch] Switching to vector #${mutationSeed}: "${currentQuery}"`);
-        currentPage = 1;
-      }
+    // If a query vector yields 0 survivors on the current page, auto-advance to next page unless 3 consecutive pages yield 0, then try next query vector
+    if (survivors.length === 0 && rawResults.length > 0) {
+      console.log(`[PreFilter] Page ${currentPage} yielded 0 survivors out of ${rawResults.length} raw hits. Continuing to page ${currentPage + 1}...`);
     }
-    // ── Stage 2: Micro-batch AI Qualifier (4 concurrent + 500ms pacing delay) ──
-    const BATCH_SIZE = 4;
-    for (let bi = 0; bi < survivors.length && candidates.length < targetCount; bi += BATCH_SIZE) {
-      if (bi > 0) {
-        // Pacing delay between micro-batches to prevent API rate limits
+
+    // Auto-advance query vector if current vector reaches page 2+ with few survivors, ensuring fast multi-vector discovery
+    if (currentPage >= 2 && survivors.length < 2 && candidates.length < targetCount) {
+      mutationSeed = (mutationSeed + 1) % QUERY_MUTATIONS.length;
+      currentQuery = QUERY_MUTATIONS[mutationSeed](keyword, searchLocation);
+      console.log(`[Query Vector Adaptive Switch] Advancing to query vector #${mutationSeed}: "${currentQuery}"`);
+      currentPage = 1;
+      consecutiveEmpty = 0;
+    }
+    // ── Stage 2: Sequential Paced AI Qualifier (1 candidate at a time + 500ms pacing delay) ──
+    for (let i = 0; i < survivors.length && candidates.length < targetCount; i++) {
+      if (i > 0) {
+        // Pacing delay between single calls to keep token usage smooth & avoid hitting 429 rate limit spikes
         await new Promise(r => setTimeout(r, 500));
       }
-      const batch = survivors.slice(bi, bi + BATCH_SIZE);
-      const batchResults = await Promise.all(
-        batch.map(async (item) => {
-          const domain = getDomain(item.url);
-          console.log(`[AI Qualifier] Checking: ${item.url}`);
-          const qualResult = await validateCompany({
-            title: item.title || domain,
-            description: (item.content || '').slice(0, 300),
-            url: item.url,
-          }, profile, cleanCountry || 'Global', cleanCity, keyword);
-          return { item, domain, qualResult };
-        })
-      );
+      const item = survivors[i];
+      const domain = getDomain(item.url);
+      console.log(`[AI Qualifier] Checking (${i + 1}/${survivors.length}): ${item.url}`);
+      const qualResult = await validateCompany({
+        title: item.title || domain,
+        description: (item.content || '').slice(0, 300),
+        url: item.url,
+      }, profile, cleanCountry || 'Global', cleanCity, keyword);
 
-      for (const { item, domain, qualResult } of batchResults) {
-        if (!qualResult.is_fit) {
-          console.log(`[B2B Qualifier] Rejected: ${item.url} (score:${qualResult.score})`);
-          continue;
-        }
-        if (candidates.length >= targetCount) break;
-        const name = qualResult.company_name || cleanCompanyName(item.title, domain);
-        const contacts = extractContacts(item.content || '');
-        const isRateLimited = Boolean(qualResult.is_rate_limited);
-        const trustScore = isRateLimited ? 0 : qualResult.score;
-        const reason = isRateLimited ? 'Qualification Failed — Retry' : (qualResult.reason || (item.content || '').slice(0, 300).trim());
-
-        candidates.push({
-          name, website: item.url, domain,
-          snippet: reason,
-          trustScore: trustScore,
-          isRateLimited: isRateLimited,
-          email: contacts.email, phone: contacts.phone,
-          matchedService: qualResult.matched_service,
-          matchReason: qualResult.match_reason,
-          outreachAngle: qualResult.outreach_angle,
-          personalizationHook: qualResult.personalization_hook,
-          redFlags: qualResult.red_flags,
-        });
-        addedThisPage++;
+      if (!qualResult.is_fit || qualResult.is_rate_limited || qualResult.score === 0) {
+        console.log(`[B2B Qualifier] Filtered out failed/unqualified candidate: ${item.url} (fit:${qualResult.is_fit}, score:${qualResult.score})`);
+        continue;
       }
+      if (candidates.length >= targetCount) break;
+      const name = qualResult.company_name || cleanCompanyName(item.title, domain);
+      const contacts = extractContacts(item.content || '');
+      const isRateLimited = Boolean(qualResult.is_rate_limited);
+      const trustScore = isRateLimited ? 0 : qualResult.score;
+      const reason = isRateLimited ? 'Qualification Failed — Retry' : (qualResult.reason || (item.content || '').slice(0, 300).trim());
+
+      candidates.push({
+        name, website: item.url, domain,
+        snippet: reason,
+        trustScore: trustScore,
+        isRateLimited: isRateLimited,
+        email: contacts.email, phone: contacts.phone,
+        matchedService: qualResult.matched_service,
+        matchReason: qualResult.match_reason,
+        outreachAngle: qualResult.outreach_angle,
+        personalizationHook: qualResult.personalization_hook,
+        redFlags: qualResult.red_flags,
+      });
+      addedThisPage++;
     }
 
     console.log(`[Loop] Page ${currentPage}: +${addedThisPage} added. Buffer ${candidates.length}/${targetCount}`);
@@ -1111,7 +1229,7 @@ async function discoverCompanies(
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ company_name: c.name, website_url: c.website }),
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(20000),
         });
         if (r.ok) {
           const d = await r.json();
@@ -1126,8 +1244,11 @@ async function discoverCompanies(
       }
 
       const isRateLimited = Boolean(c.isRateLimited || c.snippet?.includes('Qualification Failed'));
-      const finalTrustScore = isRateLimited ? 0 : (c.trustScore ?? 80);
-      const finalTrustStatus = isRateLimited ? 'Pending Review' : (finalTrustScore >= 80 ? 'High Fit' : 'Medium Fit');
+      if (isRateLimited || (c.trustScore ?? 0) === 0) {
+        return null;
+      }
+      const finalTrustScore = c.trustScore ?? 80;
+      const finalTrustStatus = finalTrustScore >= 80 ? 'High Fit' : 'Medium Fit';
 
       return {
         id: `co-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
@@ -1182,6 +1303,9 @@ async function discoverCompanies(
     console.log(`[Ledger] ${updatedDomains.length} domains total.`);
   }
 
+  const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
+  console.log(`[Discovery Summary] Total companies found: ${deduped.length}/${targetCount} | Total Groq 429 retries: ${globalGroq429Count} | Total time taken: ${elapsedSec}s`);
+
   return deduped;
 }
 
@@ -1198,7 +1322,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const results = await discoverCompanies(keyword, country, 20, Date.now(), resetCursor, getServiceProfile(), city);
+    const results = await discoverCompanies(keyword, country, TARGET_COMPANY_COUNT, Date.now(), resetCursor, getServiceProfile(), city);
     const displayLocation = city ? `${city}, ${country}` : country;
     const res = NextResponse.json({ companies: results, query: `${keyword} companies in ${displayLocation || 'Global'}` });
     res.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
@@ -1227,7 +1351,7 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[Profile] Using: ${profile.ourCompany} | ${profile.ourServices}`);
-    const results = await discoverCompanies(keyword, country, 20, Date.now(), resetCursor, profile, city);
+    const results = await discoverCompanies(keyword, country, TARGET_COMPANY_COUNT, Date.now(), resetCursor, profile, city);
     const res = NextResponse.json({ companies: results, query: `${keyword} companies`, profile });
     res.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
     res.headers.set('Pragma', 'no-cache');
