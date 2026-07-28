@@ -48,6 +48,11 @@ interface AnalysisResult {
   error?: string;
 }
 
+interface IndustrySuggestion {
+  industry: string;
+  reason: string;
+}
+
 // ─── Color helpers ────────────────────────────────────────────────────────────
 const LOGO_COLORS = [
   'bg-[#08478a]', 'bg-[#2e7d32]', 'bg-[#1565c0]',
@@ -384,46 +389,17 @@ function CompanyCard({
           </div>
         )}
 
-        {/* Secondary Contact: LinkedIn link (when primary is Email or Phone AND LinkedIn also exists) */}
-        {(company.email || company.phone) && company.linkedin && (
-          <div className="flex items-center gap-1.5 text-[11px] text-secondary pt-1 border-t border-outline-variant/30">
-            <span className="material-symbols-outlined text-[13px] text-blue-600 flex-shrink-0">link</span>
-            <a href={company.linkedin} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate font-normal">
-              {company.linkedin.replace(/^https?:\/\/(www\.)?/, '')}
-            </a>
-          </div>
-        )}
-
-        {/* Source Reference Badge & Direct Contact Page Link */}
-        {company.contactSource?.url ? (
-          <div className="pt-1.5 mt-1 border-t border-outline-variant/40 flex items-center justify-between text-[11px]">
-            <span className="text-secondary font-medium flex items-center gap-1">
-              <span className="material-symbols-outlined text-[12px] text-emerald-600">verified</span>
-              Contact Source:
-            </span>
-            <a
-              href={company.contactSource.url}
-              target="_blank"
-              rel="noreferrer"
-              title={company.contactSource.context || 'Verified contact page'}
-              className="text-primary font-semibold hover:underline truncate max-w-[200px] flex items-center gap-0.5 bg-blue-50 px-2 py-0.5 rounded border border-blue-200"
-            >
-              {company.contactSource.page || 'Contact Page'} ↗
-            </a>
-          </div>
-        ) : company.website && (
-          <div className="pt-1.5 mt-1 border-t border-outline-variant/40 flex items-center justify-between text-[11px]">
-            <span className="text-secondary font-medium flex items-center gap-1">
-              <span className="material-symbols-outlined text-[12px] text-gray-400">language</span>
-              Website:
-            </span>
+        {/* Website link — minimal, clean */}
+        {company.website && (
+          <div className="pt-1 mt-0.5 border-t border-outline-variant/30 flex items-center gap-1 text-[11px] text-secondary">
+            <span className="material-symbols-outlined text-[12px] text-gray-400">language</span>
             <a
               href={company.website.startsWith('http') ? company.website : `https://${company.website}`}
               target="_blank"
               rel="noreferrer"
-              className="text-primary font-medium hover:underline truncate max-w-[200px]"
+              className="text-secondary hover:text-primary hover:underline truncate"
             >
-              {company.domain || company.displayUrl} ↗
+              {company.domain || company.displayUrl}
             </a>
           </div>
         )}
@@ -566,6 +542,54 @@ export default function DiscoverPage() {
   const [activeCompany, setActiveCompany] = useState<Company | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // ── Suggest Industries State & Handlers ─────────────────────────────────────
+  const [suggestInput, setSuggestInput] = useState('');
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<IndustrySuggestion[]>([]);
+  const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
+
+  const handleSuggestIndustries = useCallback(async () => {
+    const input = suggestInput.trim();
+    if (!input) return;
+
+    setSuggestLoading(true);
+    setSuggestError(null);
+
+    try {
+      const res = await fetch('/api/suggest-industries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to get industry suggestions');
+      }
+
+      setSuggestions(data.suggestions || []);
+      setSelectedIndustries([]);
+    } catch (err) {
+      setSuggestError(err instanceof Error ? err.message : 'Failed to suggest industries');
+    } finally {
+      setSuggestLoading(false);
+    }
+  }, [suggestInput]);
+
+  const handleToggleIndustry = useCallback((industryName: string) => {
+    setSelectedIndustries((prev) => {
+      let next: string[];
+      if (prev.includes(industryName)) {
+        next = prev.filter((i) => i !== industryName);
+      } else {
+        next = [...prev, industryName];
+      }
+      setKeyword(next.join(', '));
+      return next;
+    });
+  }, []);
 
   // ── Restore search state from sessionStorage on page mount ─────────────────
   useEffect(() => {
@@ -830,10 +854,85 @@ export default function DiscoverPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save');
+
+      const clientId: string | undefined = data.client?.id;
       setCompanies((prev) => prev.map((c) => (c.id === company.id ? { ...c, saved: true } : c)));
       if (activeCompany?.id === company.id) setActiveCompany((prev) => prev ? { ...prev, saved: true } : prev);
       setActiveCompany(null);
       showToast(`${company.name} saved to Clients!`, 'success');
+
+      // ── Stage 2: Background deep enrich (fire and forget) ─────────────────
+      // Immediately returns to user; enrichment runs async and updates Supabase.
+      if (clientId) {
+        (async () => {
+          try {
+            const enrichRes = await fetch('/api/deep-enrich', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                company_name: company.name,
+                website_url: company.website || company.domain,
+              }),
+            });
+            if (!enrichRes.ok) return;
+            const enrichData = await enrichRes.json();
+
+            const newEmail = enrichData.primary_email || company.email || null;
+            const newPhone = (enrichData.phones && enrichData.phones.length > 0)
+              ? enrichData.phones[0] : company.phone || null;
+            const newLinkedin = enrichData.linkedin_company || company.linkedin || null;
+
+            // Update Supabase record with Stage 2 contacts
+            await fetch(`/api/clients/${clientId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: newEmail,
+                phone: newPhone,
+                phones: enrichData.phones?.join(', ') || null,
+                linkedin_company: newLinkedin,
+                contact_source_url: enrichData.contact_page_url || null,
+                contact_source_label: enrichData.source_label || null,
+                enrichment_json: JSON.stringify({
+                  all_emails: enrichData.all_emails || [],
+                  email_meta: enrichData.email_meta || [],
+                  phones: enrichData.phones || [],
+                  linkedin_company: enrichData.linkedin_company || null,
+                  linkedin_people: enrichData.linkedin_people || [],
+                  contact_page_url: enrichData.contact_page_url || null,
+                  found: enrichData.found,
+                  stage: 2,
+                }),
+              }),
+            }).catch((e) => console.warn('[Stage 2] PATCH failed:', e));
+
+            // Also update in-memory + sessionStorage so card reflects Stage 2
+            setCompanies((prev) => {
+              const updated = prev.map((c) => {
+                if (c.id !== company.id) return c;
+                return {
+                  ...c,
+                  email: newEmail || c.email,
+                  phone: newPhone || c.phone,
+                  linkedin: newLinkedin || c.linkedin,
+                };
+              });
+              try {
+                const cached = sessionStorage.getItem('clientplus_discover_cache');
+                if (cached) {
+                  const parsed = JSON.parse(cached);
+                  parsed.companies = updated;
+                  sessionStorage.setItem('clientplus_discover_cache', JSON.stringify(parsed));
+                }
+              } catch {}
+              return updated;
+            });
+          } catch (e) {
+            console.warn('[Stage 2] Deep enrich failed silently:', e);
+          }
+        })();
+      }
+      // ── End Stage 2 ───────────────────────────────────────────────────────────
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to save client', 'error');
     }
@@ -847,6 +946,113 @@ export default function DiscoverPage() {
         <p className="text-[16px] text-secondary mt-1">
           Search the web for real companies, get contact details, and save leads instantly.
         </p>
+      </motion.div>
+
+      {/* Suggest Industries Panel */}
+      <motion.div
+        className="bg-white rounded-2xl border border-outline-variant soft-shadow p-5 mb-5"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05, type: 'spring', stiffness: 300, damping: 30 }}
+      >
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+              <span className="material-symbols-outlined text-[18px]">lightbulb</span>
+            </div>
+            <div>
+              <h3 className="text-[15px] font-bold text-on-surface leading-tight">Suggest Target Industries</h3>
+              <p className="text-[12px] text-secondary">
+                Type a technology or service name to discover high-value target industries before searching.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2.5 items-stretch">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={suggestInput}
+                onChange={(e) => setSuggestInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSuggestIndustries();
+                  }
+                }}
+                placeholder="e.g. Drone mapping, LiDAR SLAM, AI perception..."
+                className="w-full h-10 pl-3.5 pr-3 py-2 bg-surface border border-outline-variant rounded-xl text-[14px] text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              />
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleSuggestIndustries}
+              disabled={suggestLoading || !suggestInput.trim()}
+              className="bg-surface border border-outline-variant text-on-surface font-semibold text-[14px] px-5 py-2 h-10 rounded-xl hover:bg-surface-variant hover:text-primary transition-colors flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 shrink-0"
+            >
+              <span className={`material-symbols-outlined text-[18px] text-primary ${suggestLoading ? 'animate-spin' : ''}`}>
+                {suggestLoading ? 'progress_activity' : 'auto_awesome'}
+              </span>
+              {suggestLoading ? 'Thinking...' : 'Suggest Industries'}
+            </motion.button>
+          </div>
+
+          {/* Suggest Error */}
+          {suggestError && (
+            <p className="text-[12px] text-red-600 font-medium flex items-center gap-1.5 mt-1">
+              <span className="material-symbols-outlined text-[14px]">error</span>
+              {suggestError}
+            </p>
+          )}
+
+          {/* Suggestions Results (Clickable Chips) */}
+          {suggestions.length > 0 && (
+            <div className="mt-2 pt-3 border-t border-outline-variant/60 flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-secondary flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px] text-primary">touch_app</span>
+                  Click industry chip to auto-fill search field
+                </span>
+                <span className="text-[11px] text-secondary">
+                  {suggestions.length} suggested industries
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((item, idx) => {
+                  const isSelected = selectedIndustries.includes(item.industry) || keyword.includes(item.industry);
+                  return (
+                    <motion.button
+                      key={idx}
+                      type="button"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => handleToggleIndustry(item.industry)}
+                      title={item.reason ? `${item.industry}: ${item.reason}` : item.industry}
+                      className={`group text-left px-3.5 py-2 rounded-xl text-[13px] transition-all flex flex-col gap-0.5 border ${
+                        isSelected
+                          ? 'bg-primary/10 border-primary text-primary font-semibold shadow-sm'
+                          : 'bg-surface border-outline-variant/80 text-on-surface hover:border-primary/50 hover:bg-surface-variant'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-semibold text-[13px]">
+                        <span className={`material-symbols-outlined text-[15px] ${isSelected ? 'text-primary' : 'text-secondary group-hover:text-primary'}`}>
+                          {isSelected ? 'check_circle' : 'add_circle'}
+                        </span>
+                        <span>{item.industry}</span>
+                      </div>
+                      {item.reason && (
+                        <span className={`text-[11px] leading-tight pl-5 max-w-xs ${isSelected ? 'text-primary/80 font-normal' : 'text-secondary'}`}>
+                          {item.reason}
+                        </span>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </motion.div>
 
       {/* Search Panel */}

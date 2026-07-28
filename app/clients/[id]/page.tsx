@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 
@@ -17,6 +17,11 @@ interface Client {
   phone?: string;
   logo_url?: string;
   created_at: string;
+  contact_source_context?: string; // Stage 2 JSON stored here
+  linkedin_company?: string;
+  contact_source_url?: string;
+  contact_source_label?: string;
+  phones?: string;
 }
 
 interface ContactMeta {
@@ -44,7 +49,7 @@ interface ContactData {
   loading: boolean;
 }
 
-const tabs = ['Overview', 'Contact Info', 'Email History'];
+const tabs = ['Overview', 'Contact Info', 'Outreach Email', 'Email History'];
 
 const STATUS_STYLES: Record<string, string> = {
   Qualified:           'bg-[#e8f5e9] text-[#2e7d32] border-[#c8e6c9]',
@@ -69,6 +74,25 @@ function getTrustLabel(score: number) {
 function getDomain(url: string): string {
   try { return new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, ''); }
   catch { return url; }
+}
+
+function getCleanPageName(urlOrPath?: string | null): string {
+  if (!urlOrPath) return 'Homepage';
+  try {
+    let clean = urlOrPath.replace(/^SOURCE_URL:\s*/i, '').trim();
+    if (clean.startsWith('http')) {
+      clean = new URL(clean).pathname;
+    }
+    clean = clean.replace(/\/+$/, '');
+    if (!clean || clean === '') return 'Homepage';
+    const lower = clean.toLowerCase();
+    if (lower.includes('contact')) return 'Contact Page';
+    if (lower.includes('about')) return 'About Page';
+    if (lower.includes('team')) return 'Team Page';
+    return clean.startsWith('/') ? clean : `/${clean}`;
+  } catch {
+    return 'Website Page';
+  }
 }
 
 // ─── Copy Button ──────────────────────────────────────────────────────────────
@@ -140,6 +164,145 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     found: false,
     loading: false,
   });
+  // Stage 2 polling state: 'idle' | 'polling' | 'done' | 'timeout'
+  const [stage2State, setStage2State] = useState<'idle' | 'polling' | 'done' | 'timeout'>('idle');
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollCountRef = useRef(0);
+
+  // Outreach Email Generation State
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [emailGenerating, setEmailGenerating] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailCopied, setEmailCopied] = useState(false);
+
+  const handleGenerateEmail = useCallback(async () => {
+    if (!client) return;
+    setEmailGenerating(true);
+    setEmailError(null);
+    setEmailCopied(false);
+
+    try {
+      const res = await fetch('/api/generate-outreach-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company_name: client.name,
+          industry: client.industry,
+          country: client.country,
+          company_summary: client.relevance_reason || `${client.name} is a company operating in ${client.industry}.`,
+          matched_service: (client as any).matched_service || 'AI perception & robotics R&D',
+          match_reason: (client as any).match_reason || `optimizing and automating operations for ${client.name}`,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate outreach email');
+
+      setEmailSubject(data.subject || `AI & Robotics R&D for ${client.name}`);
+      setEmailBody(data.body || '');
+
+      // Step 2 Automation: Auto-update status to 'Contacted' so lead moves on Task Board
+      if (client.status !== 'Contacted') {
+        setClient(prev => prev ? { ...prev, status: 'Contacted' } : null);
+        fetch(`/api/clients/${client.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Contacted' }),
+        }).catch(err => console.warn('[Auto Contacted Status Error]', err));
+      }
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : 'Email generation failed');
+    } finally {
+      setEmailGenerating(false);
+    }
+  }, [client]);
+
+  const handleGenerateFollowup = useCallback(async () => {
+    if (!client) return;
+    setEmailGenerating(true);
+    setEmailError(null);
+    setEmailCopied(false);
+
+    try {
+      const res = await fetch('/api/generate-outreach-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company_name: client.name,
+          industry: client.industry,
+          country: client.country,
+          company_summary: client.relevance_reason || `${client.name} is a company operating in ${client.industry}.`,
+          matched_service: (client as any).matched_service || 'AI perception & robotics R&D',
+          is_followup: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate follow-up email');
+
+      setEmailSubject(data.subject || `Following up: AI & Robotics R&D for ${client.name}`);
+      setEmailBody(data.body || '');
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : 'Follow-up email generation failed');
+    } finally {
+      setEmailGenerating(false);
+    }
+  }, [client]);
+
+  // Negotiation Assistant State
+  const [clientReplyInput, setClientReplyInput] = useState('');
+  const [negotiationResult, setNegotiationResult] = useState<{
+    objection_type: string;
+    detected_intent: string;
+    strategy_hint: string;
+    subject: string;
+    body: string;
+  } | null>(null);
+  const [analyzingNegotiation, setAnalyzingNegotiation] = useState(false);
+  const [negotiationError, setNegotiationError] = useState<string | null>(null);
+
+  const handleAnalyzeNegotiation = useCallback(async () => {
+    if (!client || !clientReplyInput.trim()) return;
+    setAnalyzingNegotiation(true);
+    setNegotiationError(null);
+
+    try {
+      const res = await fetch('/api/analyze-negotiation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company_name: client.name,
+          industry: client.industry,
+          country: client.country,
+          company_summary: client.relevance_reason || `${client.name} is operating in ${client.industry}.`,
+          matched_service: (client as any).matched_service || 'AI perception & robotics R&D',
+          client_reply: clientReplyInput,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to analyze negotiation reply');
+
+      setNegotiationResult(data);
+      if (data.subject) setEmailSubject(data.subject);
+      if (data.body) setEmailBody(data.body);
+
+      // Auto-update client status to 'In Negotiation' so lead moves on Task Board
+      if (client.status !== 'In Negotiation') {
+        setClient(prev => prev ? { ...prev, status: 'In Negotiation' } : null);
+        fetch(`/api/clients/${client.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'In Negotiation' }),
+        }).catch(err => console.warn('[Auto Negotiation Status Error]', err));
+      }
+    } catch (err) {
+      setNegotiationError(err instanceof Error ? err.message : 'Negotiation analysis failed');
+    } finally {
+      setAnalyzingNegotiation(false);
+    }
+  }, [client, clientReplyInput]);
 
   // Load client data
   useEffect(() => {
@@ -158,61 +321,107 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     load();
   }, [id]);
 
-  // Enrich contacts when Contact Info tab opens
+  // ── Stage 2 enrichment: load from Supabase or poll until ready ────────────
   useEffect(() => {
     if (activeTab !== 'Contact Info' || !client) return;
-    if (contacts.found || contacts.loading) return;
+    if (stage2State === 'done' || stage2State === 'polling') return;
 
-    setContacts(prev => ({ ...prev, loading: true }));
-    const domain = client.website ? getDomain(client.website) : '';
+    function applyStage2Data(raw: Client) {
+      // Parse Stage 2 JSON from contact_source_context
+      let stage2: Partial<ContactData> | null = null;
+      if (raw.contact_source_context) {
+        try {
+          const parsed = JSON.parse(raw.contact_source_context);
+          if (parsed && Array.isArray(parsed.all_emails)) stage2 = parsed;
+        } catch {}
+      }
 
-    fetch(`/api/enrich-contacts?company=${encodeURIComponent(client.name)}&domain=${encodeURIComponent(domain)}`)
-      .then(r => r.json())
-      .then(data => {
-        const allEmails = [...new Set([
-          ...(client.email ? [client.email] : []),
-          ...(data.all_emails || data.emails || []),
-        ])];
-        const primaryEmail = data.primary_email || allEmails[0] || client.email || null;
-
-        const phones = [...new Set([
-          ...(client.phone ? [client.phone] : []),
-          ...(data.phones || []),
-        ])];
-
-        const linkedinCompany = data.linkedin_company || data.linkedinUrl || null;
-        const linkedinPeople = data.linkedin_people || [];
-        const contactPageUrl = data.contact_page_url || (client.website ? `${client.website.replace(/\/+$/, '')}/contact-us` : null);
-        const sourceLabel = data.source_label || 'Contact Page';
-        const sourceContext = data.source_context || data.email_source_context || 'Verified from site';
+      if (stage2) {
+        // Stage 2 complete — use its data, fall back to base fields
+        const primaryEmail = (stage2.all_emails && stage2.all_emails[0]) || raw.email || null;
+        const phones = Array.isArray(stage2.phones) && stage2.phones.length > 0
+          ? stage2.phones
+          : raw.phones ? raw.phones.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const linkedinCompany = stage2.linkedin_company || raw.linkedin_company || null;
+        const linkedinPeople = Array.isArray(stage2.linkedin_people) ? stage2.linkedin_people : [];
+        const contactPageUrl = stage2.contact_page_url || raw.contact_source_url ||
+          (raw.website ? `${raw.website.replace(/\/+$/, '')}/contact-us` : null);
 
         const outreachSuggestion = primaryEmail
-          ? `Primary Email (${primaryEmail}) verified near ${sourceLabel}. Suggested channel: Cold Email outreach + LinkedIn Company connect.`
+          ? `Primary email (${primaryEmail}) verified. Suggested: Cold Email outreach + LinkedIn connect.`
           : linkedinCompany
-          ? `No public email found. Suggested channel: LinkedIn Company Outreach & InMail to team.`
-          : `Contact company via website contact form at ${contactPageUrl || client.website}.`;
+          ? `No public email found. Suggested: LinkedIn Company Outreach & InMail.`
+          : `Contact via website form at ${contactPageUrl || raw.website}.`;
 
         setContacts({
           primary_email: primaryEmail,
-          all_emails: allEmails,
-          email_meta: data.email_meta || [],
+          all_emails: stage2.all_emails || (raw.email ? [raw.email] : []),
+          email_meta: stage2.email_meta || [],
           phones,
           linkedin_company: linkedinCompany,
           linkedin_people: linkedinPeople,
           contact_page_url: contactPageUrl,
-          source_label: sourceLabel,
-          source_context: sourceContext,
-          stakeholder: data.stakeholder || 'Not found',
-          context_snippet: data.context_snippet || 'Not found',
+          source_label: stage2.source_label || 'Stage 2 Deep Crawl',
+          source_context: '',
           outreach_suggestion: outreachSuggestion,
-          found: Boolean(primaryEmail || allEmails.length > 0 || phones.length > 0 || linkedinCompany || linkedinPeople.length > 0),
+          found: Boolean(primaryEmail || phones.length > 0 || linkedinCompany || linkedinPeople.length > 0),
           loading: false,
         });
-      })
-      .catch(() => {
-        setContacts(prev => ({ ...prev, loading: false }));
+        setStage2State('done');
+        if (pollRef.current) clearInterval(pollRef.current);
+        return true;
+      }
+
+      // Stage 2 not yet done — seed with Stage 1 data from base columns
+      const primaryEmail = raw.email || null;
+      const phones = raw.phones ? raw.phones.split(',').map(s => s.trim()).filter(Boolean)
+        : (raw.phone ? [raw.phone] : []);
+      const linkedinCompany = raw.linkedin_company || null;
+      const contactPageUrl = raw.contact_source_url ||
+        (raw.website ? `${raw.website.replace(/\/+$/, '')}/contact-us` : null);
+
+      setContacts({
+        primary_email: primaryEmail,
+        all_emails: primaryEmail ? [primaryEmail] : [],
+        email_meta: [],
+        phones,
+        linkedin_company: linkedinCompany,
+        linkedin_people: [],
+        contact_page_url: contactPageUrl,
+        source_label: raw.contact_source_label || 'Stage 1 (fast crawl)',
+        source_context: '',
+        found: Boolean(primaryEmail || phones.length > 0 || linkedinCompany),
+        loading: false,
       });
-  }, [activeTab, client]);
+      return false; // Stage 2 not done yet
+    }
+
+    const alreadyDone = applyStage2Data(client as Client);
+    if (alreadyDone) return;
+
+    // Stage 2 not in Supabase yet — start polling every 3s up to 60s
+    setStage2State('polling');
+    pollCountRef.current = 0;
+    pollRef.current = setInterval(async () => {
+      pollCountRef.current += 1;
+      if (pollCountRef.current > 20) { // 20 × 3s = 60s
+        clearInterval(pollRef.current!);
+        setStage2State('timeout');
+        return;
+      }
+      try {
+        const res = await fetch(`/api/clients/${id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.client) {
+          const done = applyStage2Data(data.client as Client);
+          if (done) setStage2State('done');
+        }
+      } catch {}
+    }, 3000);
+
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [activeTab, client, id]);
 
   const toggleTask = (i: number) => {
     setTasks(prev => prev.map((t, idx) => idx === i ? { ...t, done: !t.done } : t));
@@ -355,15 +564,39 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 <motion.div key="ov" className="flex flex-col gap-4"
                   initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
 
-                  {/* AI Summary */}
-                  <div className="bg-white rounded-2xl p-5 border border-outline-variant soft-shadow">
-                    <h3 className="text-[14px] font-semibold text-on-surface mb-2 flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary text-[18px]">auto_awesome</span>
-                      AI Qualification Summary
-                    </h3>
-                    <p className="text-[14px] text-gray-600 leading-relaxed">
-                      {client.relevance_reason || 'No AI summary available.'}
-                    </p>
+                  {/* AI Qualification & Benefit Overview */}
+                  <div className="bg-white rounded-2xl p-5 border border-outline-variant soft-shadow space-y-4">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                      <h3 className="text-[15px] font-bold text-on-surface flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary text-[19px]">auto_awesome</span>
+                        Company Overview & Value Fit
+                      </h3>
+                      <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                        WTechX AI Analysis
+                      </span>
+                    </div>
+
+                    {/* Company Overview / Qualification Summary */}
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Company Overview</p>
+                      <p className="text-[13.5px] text-gray-700 leading-relaxed font-normal">
+                        {client.relevance_reason || `${client.name} is a company operating in the ${client.industry || 'commercial'} sector in ${client.country || 'Global'}.`}
+                      </p>
+                    </div>
+
+                    {/* Highlighted Short Benefit Banner */}
+                    <div className="bg-gradient-to-r from-blue-50/80 to-indigo-50/80 rounded-xl p-3.5 border border-blue-100 flex items-start gap-2.5">
+                      <span className="material-symbols-outlined text-blue-600 text-[18px] mt-0.5 shrink-0">trending_up</span>
+                      <div className="text-[13px] leading-snug">
+                        <span className="font-bold text-blue-900">Key Benefit: </span>
+                        <span className="text-blue-950 font-medium">
+                          {(client as any).match_reason 
+                            ? `Can leverage ${(client as any).matched_service || 'WTechX AI & Robotics'} for ${(client as any).match_reason}.`
+                            : `Can leverage WTechX LiDAR-inertial SLAM, AI perception, and sensor fusion to automate site servicing, R&D inspection, and operational efficiency.`
+                          }
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Basic Info */}
@@ -397,13 +630,25 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                       <span className="material-symbols-outlined text-primary text-[20px]">contacts</span>
                       <h3 className="text-[16px] font-bold text-on-surface">Contact Information</h3>
                     </div>
-                    {contacts.loading && (
+                    {/* Stage 2 loading / status banner */}
+                    {stage2State === 'polling' && (
                       <div className="flex items-center gap-1.5 text-[12px] text-blue-600 font-medium bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
                         <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                         </svg>
-                        Deep Crawling Web...
+                        Deep crawl in progress...
+                      </div>
+                    )}
+                    {stage2State === 'done' && (
+                      <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                        <span className="material-symbols-outlined text-[14px]">verified</span>
+                        Stage 2 enriched
+                      </div>
+                    )}
+                    {stage2State === 'timeout' && (
+                      <div className="text-[11px] text-amber-700 font-medium bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                        Still gathering — check back shortly
                       </div>
                     )}
                   </div>
@@ -432,35 +677,87 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   )}
 
                   {/* 2. All Emails List with Source Reference */}
-                  {contacts.all_emails.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="text-[13px] font-semibold text-gray-700 flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[16px] text-primary">mark_email_read</span>
-                        All Extracted Emails & Source References
-                      </h4>
-                      <div className="bg-surface-container-low rounded-xl p-3 border border-outline-variant/40 divide-y divide-gray-100">
-                        {contacts.all_emails.map((em, idx) => {
-                          const meta = contacts.email_meta.find(m => m.email?.toLowerCase() === em.toLowerCase());
-                          const label = meta?.source_label || contacts.source_label || 'Contact Page';
-                          const page = meta?.source_page || '/contact-us';
-                          return (
-                            <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[13px]">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="material-symbols-outlined text-[15px] text-blue-500">alternate_email</span>
-                                <a href={`mailto:${em}`} className="font-semibold text-blue-600 hover:underline truncate">
-                                  {em}
-                                </a>
-                                <span className="text-gray-400 font-normal shrink-0">
-                                  — Found near <span className="font-medium text-gray-700">{label}</span> heading on <span className="font-mono text-gray-600">{page}</span> page
-                                </span>
+                  {contacts.all_emails.length > 0 && (() => {
+                    const uniqueEmails = Array.from(
+                      new Map(contacts.all_emails.map(e => [e.toLowerCase(), e])).values()
+                    );
+
+                    return (
+                      <div className="space-y-2">
+                        <h4 className="text-[13px] font-semibold text-gray-700 flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-[16px] text-primary">mark_email_read</span>
+                          All Extracted Emails & Source References
+                        </h4>
+                        <div className="bg-surface-container-low rounded-xl p-3 border border-outline-variant/40 divide-y divide-gray-100">
+                          {uniqueEmails.map((em, idx) => {
+                            const meta = contacts.email_meta.find(m => m.email?.toLowerCase() === em.toLowerCase());
+
+                            let sourcesList: Array<{ name: string; url: string }> = [];
+
+                            if (meta && Array.isArray((meta as any).sources) && (meta as any).sources.length > 0) {
+                              sourcesList = (meta as any).sources.map((s: any) => ({
+                                name: s.page || getCleanPageName(s.url),
+                                url: s.url
+                              }));
+                            } else if (meta?.source_page || meta?.source_url) {
+                              sourcesList = [{
+                                name: getCleanPageName(meta.source_url || meta.source_page),
+                                url: meta.source_url || ''
+                              }];
+                            } else {
+                              sourcesList = [{
+                                name: contacts.source_label ? getCleanPageName(contacts.source_label) : 'Contact Page',
+                                url: contacts.contact_page_url || ''
+                              }];
+                            }
+
+                            // Filter out any technical 'SOURCE_URL:' strings if present
+                            sourcesList = sourcesList.map(s => ({
+                              ...s,
+                              name: s.name.replace(/^SOURCE_URL:\s*/i, '').trim()
+                            })).filter(s => s.name);
+
+                            // Deduplicate sources by page name
+                            const uniqueSources = Array.from(
+                              new Map(sourcesList.map(s => [s.name, s])).values()
+                            );
+
+                            return (
+                              <div key={idx} className="py-2.5 first:pt-1 last:pb-1 flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="material-symbols-outlined text-[16px] text-blue-500 flex-shrink-0">alternate_email</span>
+                                    <a href={`mailto:${em}`} className="font-semibold text-blue-700 hover:underline text-[14px] truncate">
+                                      {em}
+                                    </a>
+                                  </div>
+                                  <CopyBtn value={em} />
+                                </div>
+                                <div className="flex items-center gap-2 text-[12px] text-gray-500 pl-6">
+                                  <span className="font-medium text-gray-400">Found on:</span>
+                                  <div className="flex flex-wrap gap-1.5 items-center">
+                                    {uniqueSources.map((src, sIdx) => (
+                                      <a
+                                        key={sIdx}
+                                        href={src.url && src.url.startsWith('http') ? src.url : (contacts.contact_page_url || '#')}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        title={src.url ? `Source URL: ${src.url}` : 'Page source'}
+                                        className="inline-flex items-center gap-1 bg-gray-100 hover:bg-blue-50 text-gray-700 hover:text-blue-700 px-2 py-0.5 rounded-md font-medium text-[11px] transition-colors border border-gray-200/60"
+                                      >
+                                        {src.name}
+                                        <span className="material-symbols-outlined text-[10px] opacity-60">open_in_new</span>
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
                               </div>
-                              <CopyBtn value={em} />
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* 3. All Phone Numbers */}
                   {contacts.phones.length > 0 && (
@@ -559,6 +856,230 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 </motion.div>
               )}
 
+              {/* ── AI Outreach Email Tab ──────────────────────────────── */}
+              {activeTab === 'Outreach Email' && (
+                <motion.div key="oe" className="bg-white rounded-2xl p-6 border border-outline-variant soft-shadow space-y-5"
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                  
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
+                      </div>
+                      <div>
+                        <h3 className="text-[16px] font-bold text-on-surface">AI Personalized Outreach Email</h3>
+                        <p className="text-[12px] text-gray-500">Tailored cold outreach generated with Groq AI for {client.name}</p>
+                      </div>
+                    </div>
+                    {emailBody && (
+                      <button
+                        onClick={handleGenerateEmail}
+                        disabled={emailGenerating}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 text-[12px] font-semibold transition-colors disabled:opacity-50"
+                      >
+                        <span className={`material-symbols-outlined text-[15px] ${emailGenerating ? 'animate-spin' : ''}`}>
+                          {emailGenerating ? 'progress_activity' : 'refresh'}
+                        </span>
+                        {emailGenerating ? 'Generating...' : 'Regenerate'}
+                      </button>
+                    )}
+                  </div>
+
+                  {emailGenerating ? (
+                    <div className="py-12 text-center space-y-3">
+                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 animate-pulse">
+                        <span className="material-symbols-outlined text-2xl">auto_awesome</span>
+                      </div>
+                      <p className="text-[14px] font-semibold text-gray-700">Writing personalized cold email for {client.name}...</p>
+                      <p className="text-[12px] text-gray-400">Analyzing company details & WTechX service alignment</p>
+                    </div>
+                  ) : emailError ? (
+                    <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-[13px] text-red-700 flex items-center justify-between">
+                      <span>{emailError}</span>
+                      <button onClick={handleGenerateEmail} className="px-3 py-1 bg-red-600 text-white rounded-lg text-[12px] font-semibold">Try Again</button>
+                    </div>
+                  ) : !emailBody ? (
+                    <div className="py-10 text-center space-y-4 bg-gray-50/60 rounded-2xl border border-dashed border-gray-200 p-6">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 mx-auto flex items-center justify-center">
+                        <span className="material-symbols-outlined text-2xl">mail_lock</span>
+                      </div>
+                      <div>
+                        <h4 className="text-[15px] font-bold text-gray-800">No Email Generated Yet</h4>
+                        <p className="text-[13px] text-gray-500 max-w-md mx-auto mt-1">
+                          Generate a personalized cold outreach email referencing {client.name}'s specific business and WTechX solutions.
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleGenerateEmail}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-[13px] transition-all shadow-sm"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
+                        Generate Outreach Email Now
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-5">
+                      {/* 🤝 AI Negotiation Assistant & Counter-Offer Generator Panel */}
+                      <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-4.5 space-y-3 shadow-2xs">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-purple-900 font-bold text-[14px]">
+                            <span className="material-symbols-outlined text-[20px] text-purple-600">handshake</span>
+                            AI Negotiation Assistant & Counter-Offer Strategy
+                          </div>
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full border border-purple-200">
+                            Interactive Copilot
+                          </span>
+                        </div>
+
+                        <p className="text-[12px] text-purple-950/80 leading-relaxed font-medium">
+                          Paste any objection or reply received from {client.name} (e.g. price concern, technical query, implementation timeline) to analyze intent and draft a tailored counter-offer.
+                        </p>
+
+                        <div className="space-y-2">
+                          <textarea
+                            value={clientReplyInput}
+                            onChange={(e) => setClientReplyInput(e.target.value)}
+                            placeholder="Paste client's email reply or objection here... (e.g. 'Your LiDAR SLAM implementation cost is too high for our budget...')"
+                            rows={3}
+                            className="w-full p-3 bg-white border border-purple-200 rounded-xl text-[13px] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-all resize-y shadow-2xs"
+                          />
+
+                          <div className="flex items-center justify-between">
+                            <button
+                              onClick={handleAnalyzeNegotiation}
+                              disabled={analyzingNegotiation || !clientReplyInput.trim()}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-[12.5px] transition-all shadow-sm disabled:opacity-50"
+                            >
+                              <span className={`material-symbols-outlined text-[16px] ${analyzingNegotiation ? 'animate-spin' : ''}`}>
+                                {analyzingNegotiation ? 'progress_activity' : 'psychology'}
+                              </span>
+                              {analyzingNegotiation ? 'Analyzing Strategy...' : 'Analyze Reply & Draft Counter-Offer'}
+                            </button>
+
+                            {negotiationError && (
+                              <span className="text-[12px] font-semibold text-red-600">{negotiationError}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Display Analysis Results */}
+                        {negotiationResult && (
+                          <div className="mt-3 bg-white rounded-xl p-3.5 border border-purple-200 space-y-2.5 shadow-2xs animate-fadeIn">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-800 px-2 py-0.5 rounded-md border border-purple-200">
+                                  Objection: {negotiationResult.objection_type}
+                                </span>
+                                <span className="text-[12px] text-gray-600 font-medium truncate max-w-md">
+                                  Intent: {negotiationResult.detected_intent}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="bg-amber-50/70 border border-amber-200 rounded-lg p-2.5 flex items-start gap-2">
+                              <span className="material-symbols-outlined text-[18px] text-amber-600 shrink-0 mt-0.5">lightbulb</span>
+                              <div>
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900 block">WTechX Sales Strategy Advice:</span>
+                                <p className="text-[12.5px] text-amber-950 font-medium leading-relaxed">
+                                  {negotiationResult.strategy_hint}
+                                </p>
+                              </div>
+                            </div>
+
+                            <p className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                              Counter-offer email drafted and populated in editor below! Status updated to 'In Negotiation'.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      {/* Subject Line */}
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 flex items-center justify-between">
+                          <span>Subject Line</span>
+                          <span className="text-[10px] text-gray-400 font-normal">{emailSubject.length} chars</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={emailSubject}
+                          onChange={(e) => setEmailSubject(e.target.value)}
+                          className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-[14px] font-semibold text-gray-800 focus:bg-white focus:border-blue-500 focus:outline-none transition-all"
+                        />
+                      </div>
+
+                      {/* Email Body */}
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 flex items-center justify-between">
+                          <span>Email Body</span>
+                          <span className="text-[10px] text-gray-400 font-normal">{emailBody.split(/\s+/).filter(Boolean).length} words</span>
+                        </label>
+                        <textarea
+                          value={emailBody}
+                          onChange={(e) => setEmailBody(e.target.value)}
+                          rows={10}
+                          className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-[14px] leading-relaxed text-gray-800 font-sans focus:bg-white focus:border-blue-500 focus:outline-none transition-all resize-y"
+                        />
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              const fullText = `Subject: ${emailSubject}\n\n${emailBody}`;
+                              navigator.clipboard.writeText(fullText);
+                              setEmailCopied(true);
+                              setTimeout(() => setEmailCopied(false), 2500);
+                            }}
+                            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold transition-all shadow-sm ${
+                              emailCopied
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-primary text-white hover:bg-primary/90'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-[17px]">{emailCopied ? 'check' : 'content_copy'}</span>
+                            {emailCopied ? 'Copied Full Email!' : 'Copy to Clipboard'}
+                          </button>
+
+                          <button
+                            onClick={handleGenerateEmail}
+                            disabled={emailGenerating}
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 text-[13px] font-semibold transition-colors disabled:opacity-50"
+                          >
+                            <span className={`material-symbols-outlined text-[17px] ${emailGenerating ? 'animate-spin' : ''}`}>
+                              {emailGenerating ? 'progress_activity' : 'refresh'}
+                            </span>
+                            Regenerate
+                          </button>
+
+                          <button
+                            onClick={handleGenerateFollowup}
+                            disabled={emailGenerating}
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-50 text-amber-800 hover:bg-amber-100 text-[13px] font-semibold transition-colors border border-amber-200 disabled:opacity-50"
+                          >
+                            <span className="material-symbols-outlined text-[17px]">mark_email_unread</span>
+                            Generate Follow-up Nudge
+                          </button>
+                        </div>
+
+                        {contacts.primary_email && (
+                          <a
+                            href={`mailto:${contacts.primary_email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[13px] font-semibold transition-colors border border-emerald-200/60"
+                          >
+                            <span className="material-symbols-outlined text-[17px]">send</span>
+                            Open in Email Client ({contacts.primary_email})
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                </motion.div>
+              )}
+
               {/* ── Email History ──────────────────────────────────────── */}
               {activeTab === 'Email History' && (
                 <motion.div key="eh" className="bg-white rounded-2xl p-8 border border-outline-variant soft-shadow flex items-center justify-center"
@@ -610,6 +1131,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors text-[13px] font-semibold justify-center">
                   <span className="material-symbols-outlined text-[17px]">contacts</span>
                   Find Contact Info
+                </button>
+                <button onClick={() => { setActiveTab('Outreach Email'); if (!emailBody && !emailGenerating) handleGenerateEmail(); }}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:opacity-95 transition-all text-[13px] font-semibold justify-center shadow-sm">
+                  <span className="material-symbols-outlined text-[17px]">auto_awesome</span>
+                  Generate Outreach Email
                 </button>
               </div>
             </motion.div>

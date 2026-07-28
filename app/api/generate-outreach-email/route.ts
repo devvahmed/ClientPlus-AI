@@ -1,178 +1,115 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-interface FirecrawlResponse {
-  data?: {
-    markdown?: string;
-  };
-}
-
-interface DraftResponse {
-  subject: string;
-  body: string;
-  problemInsight: string;
-  confidence: 'high' | 'medium' | 'low';
-}
-
-// Dynamic Config Defaults
-const OUR_COMPANY_NAME = process.env.OUR_COMPANY_NAME || "WTechX";
-const OUR_PRODUCT_NAME = process.env.OUR_PRODUCT_NAME || "ClientPlus AI";
-const OUR_SERVICES = process.env.OUR_SERVICES || "AI, Robotics, and Computer Vision solutions provider";
-
-function normalizeUrl(website: string): string {
-  return website.startsWith('http') ? website : `https://${website}`;
-}
-
-function cleanMarkdown(markdown: string): string {
-  return markdown.replace(/\s+/g, ' ').trim().slice(0, 12000);
-}
-
-async function scrapeWebsiteContext(website: string): Promise<string> {
-  const firecrawlKey = process.env.FIRECRAWL_API_KEY;
-  if (!firecrawlKey) return '';
-
-  const res = await fetch('https://api.firecrawl.dev/v2/scrape', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${firecrawlKey}`,
-    },
-    body: JSON.stringify({
-      url: normalizeUrl(website),
-      formats: ['markdown'],
-      onlyMainContent: true,
-    }),
-    signal: AbortSignal.timeout(15000),
-  });
-
-  if (!res.ok) {
-    return '';
-  }
-
-  const data = (await res.json()) as FirecrawlResponse;
-  return cleanMarkdown(data.data?.markdown ?? '');
-}
-
-async function generateWithOllama(
-  input: {
-    companyName: string;
-    website: string;
-    industry?: string;
-    contactName?: string;
-    contextText: string;
-  },
-  ourCompanyName: string,
-  ourProductName: string,
-  ourServices: string
-): Promise<DraftResponse> {
-  const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
-
-  const prompt = `You are an elite B2B SDR writing personalized outbound emails for ${ourProductName} (offered by ${ourCompanyName}, a leading provider of ${ourServices}).
-${ourProductName} offers B2B sales intelligence, lead scoring, workflow automation, and CRM unification.
-
-Target company:
-- Name: ${input.companyName}
-- Website: ${input.website}
-- Industry: ${input.industry || 'Unknown'}
-- Contact name: ${input.contactName || 'there'}
-
-Website context extracted via crawl:
-"""
-${input.contextText || 'No reliable crawl context available.'}
-"""
-
-Rules:
-1) Draft one professional cold email with strong personalization.
-2) If clear inefficiencies exist in the context, mention them clearly and explain how ${ourProductName} can fix them.
-3) If no obvious issue is visible, write a value-led email without forcing fake problems.
-4) Keep the tone human, concise, and executive-friendly.
-5) Avoid generic fluff and avoid fake claims.
-
-You MUST respond in this exact JSON schema (do NOT include markdown fences, return pure JSON):
-{
-  "subject": "...",
-  "body": "...",
-  "problemInsight": "...",
-  "confidence": "high" | "medium" | "low"
-}`;
-
-  try {
-    const res = await fetch(`${ollamaUrl}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama3.2',
-        prompt,
-        format: 'json',
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(20000),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Ollama returned status ${res.status}`);
-    }
-
-    const data = await res.json();
-    const text = data.response;
-    if (!text) throw new Error("Empty response from Ollama");
-
-    const parsed = JSON.parse(text.trim()) as DraftResponse;
-    return {
-      subject: parsed.subject,
-      body: parsed.body,
-      problemInsight: parsed.problemInsight || 'No critical issue detected from available context.',
-      confidence: parsed.confidence || 'medium',
-    };
-  } catch (err) {
-    console.error('Ollama draft email generation failed, using default fallback:', err);
-    const hasContext = input.contextText.length > 120;
-    return {
-      subject: `A quick idea for ${input.companyName}`,
-      body:
-        `Hi ${input.contactName || 'there'},\n\n` +
-        (hasContext
-          ? `I reviewed ${input.companyName}'s website and noticed strong growth signals. A lot of teams at this stage juggle lead discovery, qualification, and follow-up across multiple tools. `
-          : `I wanted to share a quick idea for improving pipeline quality and outreach efficiency at ${input.companyName}. `) +
-        `${ourProductName} helps centralize prospect discovery, lead scoring, and sales workflow automation in one place so your team can focus on high-intent opportunities.\n\n` +
-        `Would you be open to a short 15-minute intro next week?\n\nBest,\n${ourProductName} Team`,
-      problemInsight: 'Local AI service unavailable. Dynamic value-led fallback draft was generated.',
-      confidence: 'low',
-    };
-  }
-}
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const companyName = String(body.companyName ?? '').trim();
-    const website = String(body.website ?? '').trim();
-    const industry = String(body.industry ?? '').trim();
-    const contactName = String(body.contactName ?? '').trim();
+    const company_name = body.company_name || body.companyName || 'the target company';
+    const industry = body.industry || 'Technology';
+    const country = body.country || 'Global';
+    const company_summary = body.company_summary || body.description || body.relevance_reason || `${company_name} is a leading provider in the ${industry} industry.`;
+    const matched_service = body.matched_service || body.matchedService || 'AI perception and robotics R&D';
+    const match_reason = body.match_reason || body.matchReason || `optimizing and automating operations for ${company_name}`;
+    const isFollowup = Boolean(body.is_followup || body.isFollowup);
 
-    if (!companyName || !website) {
-      return NextResponse.json(
-        { error: 'companyName and website are required' },
-        { status: 400 }
-      );
+    const apiKey = process.env.GROQ_API_KEY;
+    const model = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
+
+    const systemPrompt = isFollowup
+      ? `Write a short, polite 2-3 sentence cold follow-up nudge email to ${company_name}, a company in the ${industry} industry (${country}). 
+
+About them: ${company_summary}
+Our service offered: ${matched_service}
+
+Write a follow-up nudge email that:
+1. Briefly references our initial email regarding WTechX's ${matched_service} solutions
+2. Asks politely if they had a chance to review it or if there is a better person on their engineering/R&D team to connect with
+3. Suggests a brief, low-friction 15-minute intro call
+4. Keep it under 75 words, professional, warm, and zero fluff
+5. Signed simply as 'The WTechX Team'
+
+Return ONLY pure JSON matching this exact structure:
+{
+  "subject": "Following up: AI & Robotics R&D for ${company_name}",
+  "body": "full follow-up email body text ready to send"
+}`
+      : `Write a short, compelling cold outreach email to ${company_name}, a company in the ${industry} industry (${country}). 
+
+About them: ${company_summary}
+
+We believe they need: ${matched_service} because ${match_reason}
+
+About us: We are WTechX, a PhD-founded robotics R&D company specializing in LiDAR-inertial SLAM, AI perception, multi-sensor fusion, and robotics simulation.
+
+Write an email that:
+1. Opens with a specific, genuine hook referencing their actual business/product (not generic greetings like 'Dear Sir/Madam')
+2. Identifies their specific pain point/need in one line
+3. Positions our ${matched_service} service as the solution, briefly and confidently
+4. Ends with a clear, low-friction call-to-action (e.g. suggesting a short 15-minute call)
+5. Keep it under 150 words, professional but warm tone, no corporate jargon or generic filler phrases
+6. Do not use placeholder brackets like [Your Name] — write it ready to send, signed simply as 'The WTechX Team'
+
+Return ONLY pure JSON matching this exact structure:
+{
+  "subject": "short, specific subject line under 60 characters",
+  "body": "full email body text ready to send"
+}`;
+
+    if (!apiKey) {
+      console.warn('[Groq Email Gen] GROQ_API_KEY missing — using fallback draft');
+      return NextResponse.json({
+        subject: isFollowup ? `Following up: AI & Robotics R&D for ${company_name}` : `AI & Robotics R&D for ${company_name}`,
+        body: isFollowup
+          ? `Hi team at ${company_name},\n\nI wanted to quickly follow up on my previous message regarding WTechX's ${matched_service} solutions. I know things can get busy!\n\nWould you or someone on your engineering team have 15 minutes next week for a brief intro call?\n\nBest regards,\nThe WTechX Team`
+          : `Hi team at ${company_name},\n\nI was following ${company_name}'s work in ${industry} and noticed your technical focus. Companies scaling in this space often face operational bottlenecks when ${match_reason}.\n\nAt WTechX, we specialize in ${matched_service} to help engineering teams automate perception, SLAM navigation, and sensor fusion tasks.\n\nWould you be open to a brief 15-minute intro call next week to discuss your R&D roadmap?\n\nBest regards,\nThe WTechX Team`
+      });
     }
 
-    const contextText = await scrapeWebsiteContext(website);
-    const draft = await generateWithOllama({
-      companyName,
-      website,
-      industry,
-      contactName,
-      contextText,
-    }, OUR_COMPANY_NAME, OUR_PRODUCT_NAME, OUR_SERVICES);
+    console.log(`[Groq Email Gen] Generating ${isFollowup ? 'follow-up' : 'initial'} email for ${company_name}...`);
+
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [{ role: 'user', content: systemPrompt }],
+        temperature: 0.3,
+        max_tokens: 500,
+        response_format: { type: 'json_object' },
+      }),
+      signal: AbortSignal.timeout(12000),
+    });
+
+    if (!groqRes.ok) {
+      const errText = await groqRes.text().catch(() => '');
+      console.warn(`[Groq Email Gen] HTTP ${groqRes.status}: ${errText}`);
+      return NextResponse.json({
+        subject: isFollowup ? `Following up: AI & Robotics R&D for ${company_name}` : `AI & Robotics R&D for ${company_name}`,
+        body: isFollowup
+          ? `Hi team at ${company_name},\n\nFollowing up on my previous email regarding WTechX's ${matched_service} capabilities.\n\nWould you be open to a quick 15-minute call next week to see if there is alignment for your R&D roadmap?\n\nBest regards,\nThe WTechX Team`
+          : `Hi team at ${company_name},\n\nI was reviewing ${company_name}'s operations in ${industry} and was impressed by your team's work. Teams expanding in this domain often look for specialized support when ${match_reason}.\n\nAt WTechX, we provide ${matched_service} to help accelerate production and R&D pipelines through advanced perception and multi-sensor fusion.\n\nWould you be available for a short 15-minute call next week to see if there is an alignment?\n\nBest regards,\nThe WTechX Team`
+      });
+    }
+
+    const data = await groqRes.json();
+    const rawContent = data.choices?.[0]?.message?.content?.trim() || '{}';
+    let parsed: { subject?: string; body?: string } = {};
+    try {
+      parsed = JSON.parse(rawContent);
+    } catch {
+      parsed = { body: rawContent };
+    }
 
     return NextResponse.json({
-      ...draft,
-      websiteContextChars: contextText.length,
-      usedFirecrawl: contextText.length > 0,
+      subject: parsed.subject || (isFollowup ? `Following up: AI & Robotics R&D for ${company_name}` : `AI & Robotics R&D for ${company_name}`),
+      body: parsed.body || rawContent,
     });
   } catch (err) {
+    console.error('[Generate Email API] Error:', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed to generate outreach email' },
+      { error: err instanceof Error ? err.message : 'Failed to generate email' },
       { status: 500 }
     );
   }
