@@ -4,6 +4,7 @@ import path from 'path';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const maxDuration = 60;
 
 // Configurable target company count constant shared across AI providers
 export const TARGET_COMPANY_COUNT = 10;
@@ -421,7 +422,7 @@ function isQuickJunk(title: string = '', url: string = ''): boolean {
 
     // 1. TLD & Government subdomain checks (includes .canada.ca, .gc.ca, .gov.ca, etc.)
     if (domain.endsWith('.canada.ca') || domain === 'canada.ca' || domain.endsWith('.gc.ca') || domain === 'gc.ca' || /\.(gov|gov\.ca|gov\.uk|gov\.au|gov\.in|gov\.sg|gov\.ae|gov\.pk|mun\.ca|gouv\.qc\.ca|gov\.on\.ca|gov\.bc\.ca|gov\.ab\.ca|gov\.mb\.ca|gov\.sk\.ca|gov\.ns\.ca|gov\.nb\.ca|gov\.nl\.ca|gov\.pe\.ca)$/i.test(domain)) return true;
-    
+
     // 2. Blacklisted domain check (aggregators, directories, job boards, associations, municipal EDCs, consulting firms)
     if (isHostBlacklisted(domain, JUNK_DOMAINS) || isHostBlacklisted(domain, HARD_BLACKLIST) || domain.endsWith('edc.ca') || domain.includes('waterlooedc') || domain.includes('globalautomakers')) return true;
 
@@ -666,7 +667,7 @@ function parseGroqRetryDelay(errText: string, retryAfterHeader: string | null): 
   if (errText) {
     // Extract wait time from Groq error message e.g. "Please try again in 5.7s" or "in 500ms"
     const match = errText.match(/try again in ([0-9]+(?:\.[0-9]+)?)\s*(s|ms)?/i) ||
-                  errText.match(/in ([0-9]+(?:\.[0-9]+)?)\s*(s|ms)/i);
+      errText.match(/in ([0-9]+(?:\.[0-9]+)?)\s*(s|ms)/i);
     if (match) {
       const val = parseFloat(match[1]);
       const unit = (match[2] || 's').toLowerCase();
@@ -1008,7 +1009,7 @@ async function fetchFallbackWebSearch(query: string, pageno: number = 1): Promis
         try {
           const uddgMatch = rawHref.match(/uddg=([^&]+)/);
           if (uddgMatch) realUrl = decodeURIComponent(uddgMatch[1]);
-        } catch {}
+        } catch { }
       }
 
       if (realUrl.startsWith('http')) {
@@ -1144,8 +1145,8 @@ async function discoverCompanies(
 
   // ── Guaranteed buffer-fill while loop ────────────────────────────────────
   while (candidates.length < targetCount && currentPage <= hardPageLimit) {
-    if (Date.now() - startTime > 25_000) {
-      console.warn('[Loop] Safety time limit (25s) approaching — stopping loop.');
+    if (Date.now() - startTime > 50_000) {
+      console.warn('[Loop] Safety time limit (50s) approaching — stopping loop.');
       break;
     }
 
