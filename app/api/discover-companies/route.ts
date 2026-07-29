@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 // Configurable target company count constant shared across AI providers
-export const TARGET_COMPANY_COUNT = 20;
+export const TARGET_COMPANY_COUNT = 10;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface SearXNGResult {
@@ -1140,12 +1140,12 @@ async function discoverCompanies(
   let currentPage = startPage;
   let consecutiveEmpty = 0;
   let lastGoodPage = lastPage;
-  const hardPageLimit = startPage + 40; // Continuous offset advancement limit
+  const hardPageLimit = 2; // Fetch only 2 pages: pages 1 and 2 only
 
   // ── Guaranteed buffer-fill while loop ────────────────────────────────────
   while (candidates.length < targetCount && currentPage <= hardPageLimit) {
-    if (Date.now() - startTime > 360_000) {
-      console.warn('[Loop] Safety time limit (360s / 6m) approaching — stopping loop.');
+    if (Date.now() - startTime > 25_000) {
+      console.warn('[Loop] Safety time limit (25s) approaching — stopping loop.');
       break;
     }
 
