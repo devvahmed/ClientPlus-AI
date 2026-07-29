@@ -1254,7 +1254,7 @@ async function discoverCompanies(
   }
 
   // ── Crawl4AI enrichment (paced parallel batches) ─────────────────
-  const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'http://localhost:8000';
   console.log(`[Crawl] Enriching ${candidates.length} candidates via Crawl4AI...`);
 
   const ENRICH_BATCH_SIZE = 5;
