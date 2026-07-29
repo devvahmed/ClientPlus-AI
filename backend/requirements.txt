@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+crawl4ai
+python-dotenv
+scikit-learn
+groq
+aiosqlite
+requests
+pydantic[email]
+tldextract
+playwright
+resend
