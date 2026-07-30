@@ -28,8 +28,15 @@ export async function POST(req: NextRequest) {
     });
 
     if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      throw new Error(`Backend error (${res.status}): ${errText}`);
+      let errorMsg = `Backend error (${res.status})`;
+      try {
+        const errJson = await res.json();
+        if (errJson.detail) errorMsg = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+      } catch {
+        const errText = await res.text().catch(() => '');
+        if (errText) errorMsg = errText;
+      }
+      return NextResponse.json({ error: errorMsg }, { status: res.status });
     }
 
     const data = await res.json();
