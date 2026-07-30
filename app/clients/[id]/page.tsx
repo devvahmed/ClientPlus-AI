@@ -169,12 +169,56 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollCountRef = useRef(0);
 
-  // Outreach Email Generation State
+  // Outreach Email Generation & Sending State
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
   const [emailGenerating, setEmailGenerating] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailCopied, setEmailCopied] = useState(false);
+
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [sendSuccess, setSendSuccess] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  const handleSendEmail = useCallback(async () => {
+    if (!client || !emailBody || !contacts.primary_email) return;
+    setSendingEmail(true);
+    setSendError(null);
+    setSendSuccess(null);
+
+    try {
+      const res = await fetch('/api/send-outreach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company_name: client.name,
+          company_description: client.relevance_reason || `${client.name} operating in ${client.industry || 'B2B'}`,
+          contact_email: contacts.primary_email,
+          subject: emailSubject,
+          body: emailBody,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to send outreach email');
+
+      setSendSuccess(`Email successfully sent to ${contacts.primary_email}!`);
+
+      // Auto-update client status to 'Contacted' so lead moves on Task Board & DB
+      if (client.status !== 'Contacted') {
+        setClient(prev => prev ? { ...prev, status: 'Contacted' } : null);
+        fetch(`/api/clients/${client.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Contacted' }),
+        }).catch(err => console.warn('[Auto Contacted Status Error]', err));
+      }
+    } catch (err) {
+      setSendError(err instanceof Error ? err.message : 'Failed to send email');
+    } finally {
+      setSendingEmail(false);
+    }
+  }, [client, emailSubject, emailBody, contacts.primary_email]);
 
   const handleGenerateEmail = useCallback(async () => {
     if (!client) return;
@@ -1021,9 +1065,44 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                         />
                       </div>
 
+                      {/* Success & Error Banners for Email Sending */}
+                      {sendSuccess && (
+                        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-[13px] text-emerald-800 flex items-center justify-between font-medium animate-fadeIn">
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-[18px] text-emerald-600">check_circle</span>
+                            <span>{sendSuccess} Client status updated to <strong>Contacted</strong>.</span>
+                          </div>
+                          <button onClick={() => setSendSuccess(null)} className="text-emerald-700 hover:text-emerald-900 font-bold text-[14px]">✕</button>
+                        </div>
+                      )}
+
+                      {sendError && (
+                        <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-[13px] text-red-700 flex items-center justify-between font-medium">
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-[18px] text-red-600">error</span>
+                            <span>{sendError}</span>
+                          </div>
+                          <button onClick={() => setSendError(null)} className="text-red-700 hover:text-red-900 font-bold text-[14px]">✕</button>
+                        </div>
+                      )}
+
                       {/* Action Buttons */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                        <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-100">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {/* Primary Direct Send Email Button */}
+                          {contacts.primary_email && (
+                            <button
+                              onClick={handleSendEmail}
+                              disabled={sendingEmail || !emailBody.trim()}
+                              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-[13.5px] transition-all shadow-md hover:shadow-lg disabled:opacity-50 cursor-pointer"
+                            >
+                              <span className={`material-symbols-outlined text-[18px] ${sendingEmail ? 'animate-spin' : ''}`}>
+                                {sendingEmail ? 'progress_activity' : 'send'}
+                              </span>
+                              {sendingEmail ? 'Sending Email via Resend...' : `Send Email (${contacts.primary_email})`}
+                            </button>
+                          )}
+
                           <button
                             onClick={() => {
                               const fullText = `Subject: ${emailSubject}\n\n${emailBody}`;
@@ -1031,20 +1110,20 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                               setEmailCopied(true);
                               setTimeout(() => setEmailCopied(false), 2500);
                             }}
-                            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold transition-all shadow-sm ${
+                            className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold transition-all shadow-sm ${
                               emailCopied
                                 ? 'bg-emerald-600 text-white'
-                                : 'bg-primary text-white hover:bg-primary/90'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                           >
                             <span className="material-symbols-outlined text-[17px]">{emailCopied ? 'check' : 'content_copy'}</span>
-                            {emailCopied ? 'Copied Full Email!' : 'Copy to Clipboard'}
+                            {emailCopied ? 'Copied Full Email!' : 'Copy'}
                           </button>
 
                           <button
                             onClick={handleGenerateEmail}
                             disabled={emailGenerating}
-                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 text-[13px] font-semibold transition-colors disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 text-[13px] font-semibold transition-colors disabled:opacity-50"
                           >
                             <span className={`material-symbols-outlined text-[17px] ${emailGenerating ? 'animate-spin' : ''}`}>
                               {emailGenerating ? 'progress_activity' : 'refresh'}
@@ -1055,22 +1134,24 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                           <button
                             onClick={handleGenerateFollowup}
                             disabled={emailGenerating}
-                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-50 text-amber-800 hover:bg-amber-100 text-[13px] font-semibold transition-colors border border-amber-200 disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-amber-50 text-amber-800 hover:bg-amber-100 text-[13px] font-semibold transition-colors border border-amber-200 disabled:opacity-50"
                           >
                             <span className="material-symbols-outlined text-[17px]">mark_email_unread</span>
-                            Generate Follow-up Nudge
+                            Follow-up Nudge
                           </button>
                         </div>
 
+                        {/* Optional Manual Email Client Fallback */}
                         {contacts.primary_email && (
                           <a
                             href={`mailto:${contacts.primary_email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[13px] font-semibold transition-colors border border-emerald-200/60"
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 text-[12px] font-semibold transition-colors border border-gray-200"
+                            title="Open in your default mail app"
                           >
-                            <span className="material-symbols-outlined text-[17px]">send</span>
-                            Open in Email Client ({contacts.primary_email})
+                            <span className="material-symbols-outlined text-[15px]">open_in_new</span>
+                            Open in Email Client
                           </a>
                         )}
                       </div>
