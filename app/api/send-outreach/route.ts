@@ -14,12 +14,12 @@ export async function POST(req: NextRequest) {
 
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'http://localhost:8000';
 
-    const res = await fetch(${backendUrl}/send-outreach, {
+    const res = await fetch(`${backendUrl}/send-outreach`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         company_name,
-        company_description: company_description || ${company_name} lead,
+        company_description: company_description || `${company_name} lead`,
         contact_email,
         subject,
         body: emailBody,
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      throw new Error(Backend error (): );
+      throw new Error(`Backend error (${res.status}): ${errText}`);
     }
 
     const data = await res.json();
