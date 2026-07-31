@@ -21,6 +21,7 @@ interface Company {
   domain: string;
   industry: string;
   country: string;
+  city?: string;
   snippet: string;
   trustScore: number;
   trustStatus: string;
@@ -36,6 +37,8 @@ interface Company {
   enriching?: boolean;
   matchedService?: string;
   matchReason?: string;
+  matchConfidence?: number;
+  llmSource?: string;
   outreachAngle?: string;
   personalizationHook?: string;
   redFlags?: string;
@@ -321,7 +324,7 @@ function CompanyCard({
         </div>
         <div className="flex flex-col items-end gap-1.5 shrink-0 ml-2">
           <span className={`px-2 py-1 rounded-lg text-[11px] font-semibold ${fitBadgeColor[company.trustStatus] ?? fitBadgeColor['Neutral']}`}>
-            {company.trustStatus || 'High Fit'}
+            {company.matchConfidence !== undefined ? `${company.matchConfidence}% Match` : (company.trustStatus || 'High Fit')}
           </span>
           {company.matchedService && (
             <span className="px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/70 flex items-center gap-1">
@@ -343,11 +346,11 @@ function CompanyCard({
 
       {/* Match Reason Supporting Text */}
       {company.matchReason && (
-        <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-2.5 text-[11.5px] text-indigo-950 flex flex-col gap-0.5">
+        <div className="bg-indigo-50/70 border border-indigo-100/80 rounded-xl p-2.5 text-[11.5px] text-indigo-950 flex flex-col gap-0.5">
           <span className="font-semibold text-indigo-700 flex items-center gap-1 text-[10.5px] uppercase tracking-wider">
-            <span className="material-symbols-outlined text-[13px]">psychology</span> Match Reason & Need
+            <span className="material-symbols-outlined text-[13px]">psychology</span> Why this could be a client
           </span>
-          <p className="leading-snug text-indigo-900">{company.matchReason}</p>
+          <p className="leading-snug italic text-indigo-900">{company.matchReason}</p>
         </div>
       )}
 
@@ -746,69 +749,140 @@ export default function DiscoverPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
+  const [streamProgress, setStreamProgress] = useState<{
+    found: number; target: number; page: number; active: boolean;
+  } | null>(null);
+
   const handleSearch = useCallback(async (forceReset = false) => {
     if (!keyword.trim()) { setError('Please enter an industry or keyword to search.'); return; }
-    setLoading(true); setError(null); setErrorFix(null);
-    
+    setLoading(true);
+    setError(null);
+    setErrorFix(null);
+    setCompanies([]);
+    setStreamProgress(null);
+
     let nextPage = 1;
     const isSubsequent = !forceReset && keyword.trim() === lastKeyword && country === lastCountry && city === lastCity;
     if (isSubsequent) {
       nextPage = currentPage + 1;
     } else {
-      // Reset local page state on fresh search or new keyword/country/city
       setCurrentPage(1);
     }
 
     try {
-      const params = new URLSearchParams({
+      const payload = {
         keyword: keyword.trim(),
         country,
         city: city.trim(),
-        minTrustScore: String(minTrust),
-        pageno: String(nextPage),
-        ...(forceReset ? { clearCache: 'true' } : {}),
+        minTrustScore: minTrust,
+        pageno: nextPage,
+        target_count: 10,
+        ...(forceReset ? { clearCache: true, resetCursor: true } : {}),
+      };
+
+      const res = await fetch('/api/discover-companies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
-      const res = await fetch(`/api/discover-companies?${params}`);
-      const data = await res.json();
 
       if (!res.ok) {
-        if (data.fix) setErrorFix(data.fix);
-        throw new Error(data.error || 'Search failed');
+        const errData = await res.json().catch(() => ({}));
+        if (errData.fix) setErrorFix(errData.fix);
+        throw new Error(errData.error || `Search failed (HTTP ${res.status})`);
       }
 
-      // ── Robust response-key normalizer ─────────────────────────────────────
-      // Handles { companies: [] }, { results: [] }, or a bare array.
-      let rawCompanies: Company[] = [];
-      if (Array.isArray(data)) {
-        rawCompanies = data;
-      } else if (data && Array.isArray(data.companies)) {
-        rawCompanies = data.companies;
-      } else if (data && Array.isArray(data.results)) {
-        rawCompanies = data.results;
-      }
+      const contentType = res.headers.get('content-type') || '';
+      const isStream = contentType.includes('ndjson') || contentType.includes('stream') || contentType.includes('text/plain');
 
-      // ── Client-side filter: Only keep successfully qualified companies ───────
-      const qualifiedOnly = rawCompanies.filter((c) => c.trustStatus !== 'Pending Review' && (c.trustScore ?? 0) > 0);
-      const newCompanies: Company[] = minTrust > 0
-        ? qualifiedOnly.filter((c) => (c.trustScore ?? 0) >= minTrust)
-        : qualifiedOnly;
+      if (isStream && res.body) {
+        // ── Streaming NDJSON path ────────────────────────────────────────────
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        const accumulated: Company[] = [];
 
-      setCompanies(newCompanies);
-      if (isSubsequent) {
-        setCurrentPage(nextPage);
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            try {
+              const event = JSON.parse(trimmed);
+
+              if (event.type === 'start') {
+                setStreamProgress({ found: 0, target: event.target ?? 10, page: 1, active: true });
+                setQuery(event.query ?? `${keyword.trim()} companies`);
+              } else if (event.type === 'page_start') {
+                setStreamProgress(prev => prev ? { ...prev, page: event.page } : null);
+              } else if (event.type === 'page_end') {
+                setStreamProgress(prev => prev ? { ...prev, found: event.qualified_so_far } : null);
+              } else if (event.type === 'company') {
+                const { type: _t, ...company } = event;
+                const c = company as Company;
+                // Client-side filter: confidence gate
+                if ((c.matchConfidence ?? c.trustScore ?? 0) < (minTrust || 0)) continue;
+                accumulated.push(c);
+                setCompanies([...accumulated]);
+                setStreamProgress(prev => prev ? { ...prev, found: accumulated.length } : null);
+                setHasSearched(true);
+              } else if (event.type === 'done') {
+                setStreamProgress(null);
+              }
+            } catch {
+              // Non-JSON line — skip silently
+            }
+          }
+        }
+
+        if (!isSubsequent) {
+          setCurrentPage(1);
+          setLastKeyword(keyword.trim());
+          setLastCountry(country);
+          setLastCity(city);
+        }
+        setHasSearched(true);
+
       } else {
-        setCurrentPage(1);
-        setLastKeyword(keyword.trim());
-        setLastCountry(country);
-        setLastCity(city);
+        // ── Legacy JSON fallback ─────────────────────────────────────────────
+        const data = await res.json();
+        let rawCompanies: Company[] = [];
+        if (Array.isArray(data)) {
+          rawCompanies = data;
+        } else if (data && Array.isArray(data.companies)) {
+          rawCompanies = data.companies;
+        } else if (data && Array.isArray(data.results)) {
+          rawCompanies = data.results;
+        }
+        const qualifiedOnly = rawCompanies.filter(
+          (c) => c.trustStatus !== 'Pending Review' && ((c.matchConfidence ?? c.trustScore ?? 0) > 0)
+        );
+        const newCompanies = minTrust > 0
+          ? qualifiedOnly.filter((c) => (c.matchConfidence ?? c.trustScore ?? 0) >= minTrust)
+          : qualifiedOnly;
+
+        setCompanies(newCompanies);
+        setQuery(data.query ?? `${keyword.trim()} companies`);
+        setHasSearched(true);
+        if (!isSubsequent) {
+          setCurrentPage(1);
+          setLastKeyword(keyword.trim());
+          setLastCountry(country);
+          setLastCity(city);
+        }
       }
 
-      setQuery(data.query ?? `${keyword.trim()} companies`);
-      setHasSearched(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed. Please try again.');
     } finally {
       setLoading(false);
+      setStreamProgress(null);
     }
   }, [keyword, country, city, minTrust, lastKeyword, lastCountry, lastCity, currentPage]);
 
@@ -1141,8 +1215,30 @@ export default function DiscoverPage() {
 
       {/* Results area */}
       <AnimatePresence mode="wait">
-        {/* Loading skeleton */}
-        {loading && (
+        {/* Live streaming status banner */}
+        {loading && streamProgress && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-4 bg-primary/10 border border-primary/20 rounded-2xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-white shrink-0">
+                <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+              </div>
+              <div>
+                <p className="text-[14px] font-bold text-primary">
+                  Searching Page {streamProgress.page}... Found {streamProgress.found} of {streamProgress.target} qualified target companies
+                </p>
+                <p className="text-[12px] text-secondary">
+                  Evaluating web candidates with AI in real time. Cards appear as soon as verified.
+                </p>
+              </div>
+            </div>
+            <div className="px-3 py-1 bg-white rounded-xl text-[12px] font-semibold text-primary border border-primary/20 shadow-sm">
+              {streamProgress.found} / {streamProgress.target} Target
+            </div>
+          </motion.div>
+        )}
+
+        {/* Initial loading skeleton (only before first company arrives) */}
+        {loading && companies.length === 0 && (
           <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="bg-white rounded-2xl border border-outline-variant p-5 flex flex-col gap-4">
@@ -1193,30 +1289,32 @@ export default function DiscoverPage() {
           </motion.div>
         )}
 
-        {/* Results */}
-        {!loading && hasSearched && companies.length > 0 && (
+        {/* Results (renders during streaming OR when finished) */}
+        {companies.length > 0 && (
           <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 bg-white p-3.5 rounded-2xl border border-outline-variant/60">
-              <p className="text-[14px] text-secondary flex items-center gap-2">
-                <span className="font-semibold text-on-surface text-[15px] bg-primary/10 text-primary px-2.5 py-0.5 rounded-lg">{companies.length}</span>
-                <span>companies discovered</span>
-              </p>
-              
-              <div className="flex items-center gap-3">
-                <motion.button
-                  whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
-                  onClick={() => exportCompaniesToCSV(companies, keyword)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[13px] px-3.5 py-1.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[16px]">download</span>
-                  Export to CSV
-                </motion.button>
-                <div className="hidden md:flex items-center gap-1.5 text-[12px] text-secondary">
-                  <span className="material-symbols-outlined text-[14px] text-primary">auto_awesome</span>
-                  <span>Click ✦ on any card for AI analysis</span>
+            {!loading && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 bg-white p-3.5 rounded-2xl border border-outline-variant/60">
+                <p className="text-[14px] text-secondary flex items-center gap-2">
+                  <span className="font-semibold text-on-surface text-[15px] bg-primary/10 text-primary px-2.5 py-0.5 rounded-lg">{companies.length}</span>
+                  <span>companies discovered</span>
+                </p>
+                
+                <div className="flex items-center gap-3">
+                  <motion.button
+                    whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                    onClick={() => exportCompaniesToCSV(companies, keyword)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[13px] px-3.5 py-1.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">download</span>
+                    Export to CSV
+                  </motion.button>
+                  <div className="hidden md:flex items-center gap-1.5 text-[12px] text-secondary">
+                    <span className="material-symbols-outlined text-[14px] text-primary">auto_awesome</span>
+                    <span>Click ✦ on any card for AI analysis</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {companies.map((company, i) => (
                 <CompanyCard key={company.id} company={company} index={i} onAnalyze={handleAnalyze} onSave={(c) => handleSave(c)} />

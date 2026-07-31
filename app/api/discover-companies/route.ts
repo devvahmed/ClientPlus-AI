@@ -4,9 +4,8 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Thin Proxy: forward all discovery requests to the Python backend on Render.
-// The heavy discovery loop (SearXNG + AI qualifier) now runs in FastAPI with
-// no timeout limit. This file used to be 1400+ lines; it is now ~40 lines.
+// Thin Proxy: forward all discovery requests to the Python backend on Render/local.
+// The heavy discovery loop runs in FastAPI with no timeout limit.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BACKEND_URL =
@@ -19,7 +18,7 @@ async function proxyToBackend(body: object): Promise<NextResponse> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(120_000), // 2 min — backend handles all the work
+    signal: AbortSignal.timeout(120_000), // 2 min timeout
   });
 
   const data = await resp.json();
@@ -34,6 +33,8 @@ export async function GET(req: NextRequest) {
   const keyword = searchParams.get('keyword')?.trim() || '';
   const country = searchParams.get('country')?.trim() || '';
   const city = searchParams.get('city')?.trim() || '';
+  const minTrustScore = searchParams.get('minTrustScore');
+  const pageno = searchParams.get('pageno');
   const resetCursor = searchParams.get('resetCursor') === 'true' || searchParams.get('clearCache') === 'true';
 
   if (!keyword) {
@@ -41,10 +42,47 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    return await proxyToBackend({ keyword, country, city, reset_cursor: resetCursor });
+    const query = new URLSearchParams({
+      keyword,
+      country,
+      city,
+      ...(minTrustScore ? { minTrustScore } : {}),
+      ...(pageno ? { pageno } : {}),
+      ...(resetCursor ? { reset_cursor: 'true' } : {}),
+    });
+
+    const resp = await fetch(`${BACKEND_URL}/discover-companies?${query.toString()}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(120_000),
+    });
+
+    if (resp.status === 405 || resp.status === 404) {
+      return await proxyToBackend({
+        keyword,
+        country,
+        city,
+        minTrustScore: minTrustScore ? Number(minTrustScore) : undefined,
+        pageno: pageno ? Number(pageno) : undefined,
+        reset_cursor: resetCursor,
+      });
+    }
+
+    const data = await resp.json();
+    const res = NextResponse.json(data, { status: resp.status });
+    res.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
+    res.headers.set('Pragma', 'no-cache');
+    return res;
   } catch (err) {
-    console.error('[GET Proxy] Fatal:', err);
-    return NextResponse.json({ error: 'Discovery failed.' }, { status: 500 });
+    console.warn('[GET Proxy] GET forward failed, trying POST fallback:', err);
+    return await proxyToBackend({
+      keyword,
+      country,
+      city,
+      minTrustScore: minTrustScore ? Number(minTrustScore) : undefined,
+      pageno: pageno ? Number(pageno) : undefined,
+      reset_cursor: resetCursor,
+    });
   }
 }
 
@@ -57,11 +95,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Keyword is required.' }, { status: 400 });
     }
 
-    // Forward all fields including optional our_company / our_services overrides
     return await proxyToBackend({
       keyword,
       country: body.country?.trim() || '',
       city: body.city?.trim() || '',
+      minTrustScore: body.minTrustScore ?? body.min_trust_score,
+      pageno: body.pageno ?? body.page ?? 1,
       target_count: body.targetCount ?? body.target_count ?? 10,
       reset_cursor: Boolean(body.resetCursor || body.clearCache || body.reset_cursor),
       our_company: body.our_company,

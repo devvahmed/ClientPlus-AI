@@ -996,3 +996,9 @@ async def deep_enrich(data: EnrichRequest):
         "found":            bool(emails or phones or linkedin_company or linkedin_people),
         "stage":            2,
     }
+
+# ─── Lazy Include Discover Router ─────────────────────────────────────────────
+@app.on_event("startup")
+def include_discover_router():
+    from discover import discover_router
+    app.include_router(discover_router)
