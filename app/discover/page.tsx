@@ -321,7 +321,7 @@ function CompanyCard({
         </div>
         <div className="flex flex-col items-end gap-1.5 shrink-0 ml-2">
           <span className={`px-2 py-1 rounded-lg text-[11px] font-semibold ${fitBadgeColor[company.trustStatus] ?? fitBadgeColor['Neutral']}`}>
-            {company.trustStatus || 'High Fit'}
+            {company.matchConfidence !== undefined ? `${company.matchConfidence}% Match` : (company.trustStatus || 'High Fit')}
           </span>
           {company.matchedService && (
             <span className="px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/70 flex items-center gap-1">
@@ -343,11 +343,11 @@ function CompanyCard({
 
       {/* Match Reason Supporting Text */}
       {company.matchReason && (
-        <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-2.5 text-[11.5px] text-indigo-950 flex flex-col gap-0.5">
+        <div className="bg-indigo-50/70 border border-indigo-100/80 rounded-xl p-2.5 text-[11.5px] text-indigo-950 flex flex-col gap-0.5">
           <span className="font-semibold text-indigo-700 flex items-center gap-1 text-[10.5px] uppercase tracking-wider">
-            <span className="material-symbols-outlined text-[13px]">psychology</span> Match Reason & Need
+            <span className="material-symbols-outlined text-[13px]">psychology</span> Why this could be a client
           </span>
-          <p className="leading-snug text-indigo-900">{company.matchReason}</p>
+          <p className="leading-snug italic text-indigo-900">{company.matchReason}</p>
         </div>
       )}
 
@@ -806,9 +806,9 @@ export default function DiscoverPage() {
       }
 
       // ── Client-side filter: Only keep successfully qualified companies ───────
-      const qualifiedOnly = rawCompanies.filter((c) => c.trustStatus !== 'Pending Review' && (c.trustScore ?? 0) > 0);
+      const qualifiedOnly = rawCompanies.filter((c) => c.trustStatus !== 'Pending Review' && ((c.matchConfidence ?? c.trustScore ?? 0) > 0));
       const newCompanies: Company[] = minTrust > 0
-        ? qualifiedOnly.filter((c) => (c.trustScore ?? 0) >= minTrust)
+        ? qualifiedOnly.filter((c) => (c.matchConfidence ?? c.trustScore ?? 0) >= minTrust)
         : qualifiedOnly;
 
       setCompanies(newCompanies);

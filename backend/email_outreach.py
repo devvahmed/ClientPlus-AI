@@ -27,7 +27,6 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
         pass
 
 import database
-from discover import discover_router
 
 # Load environment variables
 load_dotenv()
@@ -42,7 +41,6 @@ OUR_VALUE_PROP   = os.getenv("OUR_VALUE_PROPOSITION", "an intelligent CRM and le
 
 app = FastAPI(title="WTechX Leads & Email Outreach API")
 database.init_db()
-app.include_router(discover_router)
 
 # ─── Pydantic Schemas ──────────────────────────────────────────────────────────
 class OutreachRequest(BaseModel):
@@ -998,3 +996,9 @@ async def deep_enrich(data: EnrichRequest):
         "found":            bool(emails or phones or linkedin_company or linkedin_people),
         "stage":            2,
     }
+
+# ─── Lazy Include Discover Router ─────────────────────────────────────────────
+@app.on_event("startup")
+def include_discover_router():
+    from discover import discover_router
+    app.include_router(discover_router)
