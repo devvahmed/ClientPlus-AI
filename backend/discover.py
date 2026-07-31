@@ -44,7 +44,7 @@ SKIP_PATTERNS = [
     '/jobs/', '/careers/', '/hiring/', '/vacancy/'
 ]
 
-# ─── In-Memory TTL Cache for LLM Evaluations ────────────────────────────────
+# ─── In-Memory TTL Cache for LLM Fit Decisions ───────────────────────────────
 _CACHE: Dict[str, dict] = {}
 _CACHE_TTL = 3600  # 1 Hour TTL in seconds
 
@@ -165,7 +165,106 @@ async def search_searxng_or_ddg(query: str, page: int = 1) -> list:
 
     return results
 
-# ─── Groq API LLM Fit Evaluator ───────────────────────────────────────────────
+# ─── PRIMARY: Local Ollama LLM Fit Evaluator ───────────────────────────────
+async def call_ollama_fit_decision(
+    company_name: str,
+    domain: str,
+    snippet: str,
+    scraped_text: str,
+    our_company: str,
+    our_services: str,
+    timeout: float = 7.0
+) -> Optional[dict]:
+    """
+    Primary LLM Classifier using GPU-accelerated Local Ollama (llama3.2).
+    Set to ~6-8s per-call timeout.
+    Returns dict: {"is_potential_client": bool, "confidence": int, "reason": str, "source": "local-ollama"}
+    """
+    ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    model_name = os.getenv("OLLAMA_MODEL", "llama3.2")
+    text_sample = (scraped_text or snippet)[:1500].strip()
+
+    # Query installed models to prevent 500 error if configured model is missing
+    try:
+        req = urllib.request.Request(f"{ollama_url.rstrip('/')}/api/tags")
+        with urllib.request.urlopen(req, timeout=2.0) as resp:
+            if resp.status == 200:
+                tags = json.loads(resp.read().decode('utf-8'))
+                installed = [m["name"] for m in tags.get("models", [])]
+                if installed:
+                    if model_name not in installed:
+                        if (model_name + ":latest") in installed:
+                            model_name = model_name + ":latest"
+                        else:
+                            print(f"[Local Ollama LLM] Model '{model_name}' not found. Falling back to installed model: '{installed[0]}'")
+                            model_name = installed[0]
+    except Exception as e:
+        print(f"[Local Ollama LLM] Tags check failed: {e}")
+
+    prompt = f"""System: You are an expert B2B sales intelligence analyst evaluating lead fit for {our_company}.
+Our Company: {our_company}
+Our Services & Product: {our_services}. {OUR_VALUE_PROP}
+
+Candidate Prospect Company:
+Name: {company_name}
+Domain: {domain}
+Website Snippet:
+{text_sample}
+
+Determine strictly if this prospect company is a realistic potential customer for {our_services}.
+Reject (is_potential_client: false) if candidate is consumer-only (B2C), a news/blog outlet, job board, directory, or has no digital transformation/AI/software/automation needs.
+
+Output JSON format strictly matching:
+{{
+  "is_potential_client": true/false,
+  "confidence": number 0-100,
+  "reason": "One clear sentence explaining WHY this company could become a customer of {our_services}, referencing what the company actually does."
+}}"""
+
+    payload = {
+        "model": model_name,
+        "prompt": prompt,
+        "format": "json",
+        "stream": False,
+        "options": {
+            "temperature": 0.2,
+            "num_predict": 180
+        }
+    }
+
+    loop = asyncio.get_event_loop()
+
+    def _invoke():
+        try:
+            req_data = json.dumps(payload).encode('utf-8')
+            req = urllib.request.Request(
+                f"{ollama_url.rstrip('/')}/api/generate",
+                data=req_data,
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                if resp.status == 200:
+                    body = json.loads(resp.read().decode('utf-8'))
+                    response_str = body.get("response", "").strip()
+                    parsed = json.loads(response_str)
+                    parsed["source"] = "local-ollama"
+                    return parsed
+        except urllib.error.HTTPError as he:
+            err_body = he.read().decode('utf-8', errors='ignore')
+            print(f"[Local Ollama LLM] HTTP Error {he.code} for {domain}: {err_body}")
+            return None
+        except Exception as e:
+            print(f"[Local Ollama LLM] Request failed for {domain} ({e})")
+            return None
+
+    try:
+        return await loop.run_in_executor(None, _invoke)
+    except Exception as e:
+        print(f"[Local Ollama LLM] Timeout/Execution error for {domain}: {e}")
+        return None
+
+# ─── EMERGENCY FALLBACK: Groq Cloud LLM Fit Evaluator ────────────────────────
 async def evaluate_client_fit_groq(
     company_name: str,
     domain: str,
@@ -175,13 +274,11 @@ async def evaluate_client_fit_groq(
     our_services: str
 ) -> Optional[dict]:
     """
-    Calls Groq API to evaluate if the prospect is a realistic B2B client.
-    Returns dict: {"is_potential_client": bool, "confidence": int, "reason": str}
-    Returns None if API call fails or times out.
+    Emergency Cloud Fallback to Groq API if local Ollama fails or times out.
     """
     apiKey = os.getenv("GROQ_API_KEY")
     if not apiKey:
-        print("[Groq LLM] Warning: GROQ_API_KEY missing in environment variables.")
+        print(f"[Groq Fallback] GROQ_API_KEY missing in environment variables.")
         return None
 
     model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
@@ -197,15 +294,10 @@ Domain: {domain}
 Website Content Snippet:
 {text_sample}
 
-INSTRUCTIONS:
 Determine strictly if this prospect company is a realistic potential customer for {our_company}'s services.
-Reject (is_potential_client: false) any candidate that is:
-- A consumer-only business (B2C only with no commercial operation).
-- An industry with zero plausible need for {our_services}.
-- A news outlet, directory, job board, blog, or aggregator site.
-- An entity with no digital transformation, automation, AI, software, or technology service needs.
+Reject (is_potential_client: false) any candidate that is consumer-only (B2C), news outlet, directory, job board, or has no digital transformation/automation/software needs.
 
-Return ONLY a single valid JSON object with NO markdown or extra text:
+Return ONLY a single valid JSON object:
 {{
   "is_potential_client": true or false,
   "confidence": integer between 0 and 100,
@@ -244,19 +336,59 @@ Return ONLY a single valid JSON object with NO markdown or extra text:
                 if resp.status == 200:
                     body = json.loads(resp.read().decode('utf-8'))
                     raw_content = body["choices"][0]["message"]["content"].strip()
-                    # Strip markdown block if model wrapped JSON
                     raw_content = re.sub(r'^```(?:json)?\s*', '', raw_content)
                     raw_content = re.sub(r'\s*```$', '', raw_content)
-                    return json.loads(raw_content)
+                    parsed = json.loads(raw_content)
+                    parsed["source"] = "groq-fallback"
+                    return parsed
         except Exception as e:
-            print(f"[Groq LLM] Evaluation failed for {domain}: {e}")
+            print(f"[Groq Fallback] Evaluation failed for {domain}: {e}")
             return None
 
     try:
         return await loop.run_in_executor(None, _call_groq)
     except Exception as e:
-        print(f"[Groq LLM] Task timeout/error for {domain}: {e}")
+        print(f"[Groq Fallback] Task timeout/error for {domain}: {e}")
         return None
+
+# ─── Dual-Engine LLM Evaluator Dispatcher ────────────────────────────────────
+async def evaluate_client_fit_dual_engine(
+    company_name: str,
+    domain: str,
+    snippet: str,
+    scraped_text: str,
+    our_company: str,
+    our_services: str
+) -> Optional[dict]:
+    """
+    Primary: Local Ollama (llama3.2, 7s timeout).
+    Fallback: Groq Cloud API (if Ollama fails/times out/returns malformed output).
+    """
+    # Try Local Ollama first
+    res = await call_ollama_fit_decision(
+        company_name=company_name,
+        domain=domain,
+        snippet=snippet,
+        scraped_text=scraped_text,
+        our_company=our_company,
+        our_services=our_services,
+        timeout=7.0
+    )
+
+    if res and isinstance(res, dict) and "is_potential_client" in res:
+        return res
+
+    # Fallback to Groq API if Ollama failed or timed out for this specific company
+    print(f"[LLM Dispatcher] Local Ollama failed for {domain} — initiating Groq emergency fallback...")
+    groq_res = await evaluate_client_fit_groq(
+        company_name=company_name,
+        domain=domain,
+        snippet=snippet,
+        scraped_text=scraped_text,
+        our_company=our_company,
+        our_services=our_services
+    )
+    return groq_res
 
 # ─── Core Discovery Pipeline ──────────────────────────────────────────────────
 async def execute_discovery_core(
@@ -277,7 +409,7 @@ async def execute_discovery_core(
     company_name_context = our_company or OUR_COMPANY_NAME
     services_context = our_services or OUR_SERVICES
 
-    # Determine effective confidence threshold
+    # Effective confidence threshold
     effective_min_confidence = int(min_confidence or 60)
     if min_trust and min_trust > 0:
         effective_min_confidence = max(effective_min_confidence, int(min_trust))
@@ -294,7 +426,7 @@ async def execute_discovery_core(
     raw_results = await search_searxng_or_ddg(query_text, page=pageno)
     print(f"[Discover Step 1] Search query returned {len(raw_results)} candidate URLs.")
 
-    # Filter out initial noise & duplicate domains
+    # Filter out noise & duplicate domains
     candidates = []
     seen_domains = set()
 
@@ -316,14 +448,54 @@ async def execute_discovery_core(
 
     print(f"[Discover Step 1] {len(candidates)} candidates passed domain & noise filters.")
 
-    # Step 2: Evaluation Pipeline with Concurrency (max 5 at a time)
+    # Step 2: Content Snapshot & TF-IDF Pre-filter
+    passed_tfidf_candidates = []
+
+    for idx, item in enumerate(candidates):
+        url = item.get('url', '')
+        snippet = item.get('content', '') or item.get('snippet', '')
+        domain = clean_domain(url)
+
+        # Check cache first
+        cached_data = get_cached_evaluation(domain)
+        if cached_data:
+            item["cached_evaluation"] = cached_data
+            passed_tfidf_candidates.append(item)
+            continue
+
+        # Fetch 2.5s homepage snapshot
+        scraped_content = ""
+        try:
+            scraped_content = await fetch_url_content(url, timeout=2.5)
+        except Exception as fe:
+            print(f"[Snapshot Fetch] {domain} failed fetch: {fe}")
+
+        text_for_scoring = (scraped_content or snippet or domain)
+        tfidf_score = compute_relevance_score(text_for_scoring)
+
+        if tfidf_score < 0.05:
+            print(f"[TF-IDF Filter] REJECTED {domain} — score {tfidf_score:.3f} < 0.05 threshold.")
+            continue
+
+        item["scraped_content"] = scraped_content
+        item["tfidf_score"] = tfidf_score
+        passed_tfidf_candidates.append(item)
+        print(f"[TF-IDF Filter] PASSED {domain} — score {tfidf_score:.3f} >= 0.05.")
+
+    # Cap candidates sent to LLM filter at 20 max
+    MAX_LLM_CANDIDATES = 20
+    llm_target_candidates = passed_tfidf_candidates[:MAX_LLM_CANDIDATES]
+    print(f"[Discover Step 2] {len(passed_tfidf_candidates)} candidates passed TF-IDF. Capping to top {len(llm_target_candidates)} for LLM evaluation.")
+
+    # Step 3: GPU-Accelerated Concurrent LLM Evaluation (Semaphore 5)
     semaphore = asyncio.Semaphore(5)
-    passed_tfidf_count = 0
     passed_llm_count = 0
+    ollama_success_count = 0
+    groq_fallback_count = 0
     qualified_companies = []
 
     async def evaluate_candidate(idx: int, item: dict):
-        nonlocal passed_tfidf_count, passed_llm_count
+        nonlocal passed_llm_count, ollama_success_count, groq_fallback_count
         async with semaphore:
             url = item.get('url', '')
             title = item.get('title', '')
@@ -334,84 +506,48 @@ async def execute_discovery_core(
             if not company_name or len(company_name) > 60:
                 company_name = domain.split('.')[0].capitalize()
 
-            # Check cache first
-            cached_data = get_cached_evaluation(domain)
-            if cached_data:
-                print(f"[Cache Hit] Domain {domain} retrieved from in-memory cache.")
-                if cached_data.get("is_potential_client") and cached_data.get("confidence", 0) >= effective_min_confidence:
-                    passed_tfidf_count += 1
-                    passed_llm_count += 1
-                    return {
-                        "id": f"co-{int(time.time() * 1000)}-{idx}-{domain[:6]}",
-                        "name": company_name,
-                        "website": url,
-                        "displayUrl": domain,
-                        "domain": domain,
-                        "industry": clean_keyword,
-                        "country": clean_country or "Global",
-                        "city": clean_city,
-                        "snippet": snippet[:280] if snippet else f"{company_name} is a company operating in the {clean_keyword} sector.",
-                        "matchReason": cached_data.get("reason", f"Potential client match for {services_context}."),
-                        "matchConfidence": cached_data.get("confidence", 80),
-                        "trustScore": cached_data.get("confidence", 80),
-                        "trustStatus": "High Fit" if cached_data.get("confidence", 80) >= 80 else "Medium Fit",
-                        "initials": get_initials(company_name),
-                        "logoUrl": f"https://logo.clearbit.com/{domain}",
-                        "email": f"info@{domain}",
-                        "phone": None,
-                        "linkedin": f"https://linkedin.com/company/{domain.split('.')[0]}",
-                        "enriched": True
-                    }
-                return None
+            # Handle cached evaluation
+            if "cached_evaluation" in item:
+                eval_res = item["cached_evaluation"]
+                source = eval_res.get("source", "cache")
+                print(f"[Cache Hit] Domain {domain} retrieved from in-memory cache ({source}).")
+            else:
+                scraped_content = item.get("scraped_content", "")
+                eval_res = await evaluate_client_fit_dual_engine(
+                    company_name=company_name,
+                    domain=domain,
+                    snippet=snippet,
+                    scraped_text=scraped_content,
+                    our_company=company_name_context,
+                    our_services=services_context
+                )
 
-            # a. Lightweight content snapshot (timeout 2.5s)
-            scraped_content = ""
-            try:
-                scraped_content = await fetch_url_content(url, timeout=2.5)
-            except Exception as fe:
-                print(f"[Snapshot Fetch] {domain} failed fetch: {fe}")
-
-            text_for_scoring = (scraped_content or snippet or company_name)
-
-            # b. TF-IDF Pre-filter (score >= 0.05)
-            tfidf_score = compute_relevance_score(text_for_scoring)
-            if tfidf_score < 0.05:
-                print(f"[TF-IDF Filter] REJECTED {domain} — score {tfidf_score:.3f} < 0.05 threshold.")
-                return None
-
-            passed_tfidf_count += 1
-            print(f"[TF-IDF Filter] PASSED {domain} — score {tfidf_score:.3f} >= 0.05. Proceeding to Groq LLM check.")
-
-            # c. Groq LLM evaluation
-            eval_res = await evaluate_client_fit_groq(
-                company_name=company_name,
-                domain=domain,
-                snippet=snippet,
-                scraped_text=scraped_content,
-                our_company=company_name_context,
-                our_services=services_context
-            )
-
-            # Error handling: Exclude if LLM failed or returned None
             if not eval_res or not isinstance(eval_res, dict):
-                print(f"[Groq LLM] EXCLUDED {domain} — LLM evaluation call failed or timed out.")
+                print(f"[LLM Evaluator] EXCLUDED {domain} — Evaluation call failed on both Local Ollama & Groq Fallback.")
                 return None
 
             is_client = bool(eval_res.get("is_potential_client"))
             confidence = int(eval_res.get("confidence", 0))
             reason = str(eval_res.get("reason", "")).strip()
+            source = str(eval_res.get("source", "local-ollama"))
+
+            if source == "local-ollama":
+                ollama_success_count += 1
+            elif source == "groq-fallback":
+                groq_fallback_count += 1
 
             # Cache the evaluation result
             set_cached_evaluation(domain, {
                 "is_potential_client": is_client,
                 "confidence": confidence,
-                "reason": reason
+                "reason": reason,
+                "source": source
             })
 
-            # d. Minimum confidence filter
+            # Check confidence threshold
             if is_client and confidence >= effective_min_confidence:
                 passed_llm_count += 1
-                print(f"[Groq LLM] ACCEPTED {domain} — confidence {confidence}% >= {effective_min_confidence}%. Reason: {reason}")
+                print(f"[{source.upper()} LLM] ACCEPTED {domain} (confidence: {confidence}%, source: {source}). Reason: {reason}")
                 return {
                     "id": f"co-{int(time.time() * 1000)}-{idx}-{domain[:6]}",
                     "name": company_name,
@@ -431,24 +567,25 @@ async def execute_discovery_core(
                     "email": f"info@{domain}",
                     "phone": None,
                     "linkedin": f"https://linkedin.com/company/{domain.split('.')[0]}",
-                    "enriched": True
+                    "enriched": True,
+                    "llmSource": source
                 }
             else:
-                print(f"[Groq LLM] REJECTED {domain} — is_client={is_client}, confidence={confidence}%. Reason: {reason}")
+                print(f"[{source.upper()} LLM] REJECTED {domain} (is_client: {is_client}, confidence: {confidence}%, source: {source}). Reason: {reason}")
                 return None
 
-    # Run evaluations concurrently
-    tasks = [evaluate_candidate(i, item) for i, item in enumerate(candidates)]
+    # Dispatch LLM evaluations concurrently
+    tasks = [evaluate_candidate(i, item) for i, item in enumerate(llm_target_candidates)]
     eval_results = await asyncio.gather(*tasks, return_exceptions=True)
 
     for res in eval_results:
         if res and isinstance(res, dict):
             qualified_companies.append(res)
 
-    # Step 3: Sort by matchConfidence descending
+    # Sort by matchConfidence descending
     qualified_companies.sort(key=lambda x: x.get("matchConfidence", 0), reverse=True)
 
-    # Trim to target count if more were found
+    # Trim to target count
     final_companies = qualified_companies[:target_count]
 
     # Generate message if fewer than target count found
@@ -463,8 +600,11 @@ async def execute_discovery_core(
     print(f"Search Query            : {query_text}")
     print(f"Raw Candidates Found   : {len(raw_results)}")
     print(f"Noise Filter Passed    : {len(candidates)}")
-    print(f"TF-IDF Pre-filter Passed: {passed_tfidf_count}")
-    print(f"Groq LLM Passed        : {passed_llm_count}")
+    print(f"TF-IDF Pre-filter Passed: {len(passed_tfidf_candidates)}")
+    print(f"Sent to LLM (Capped)   : {len(llm_target_candidates)}")
+    print(f"Local Ollama Evaluated : {ollama_success_count}")
+    print(f"Groq Fallbacks Used    : {groq_fallback_count}")
+    print(f"Passed LLM Criteria    : {passed_llm_count}")
     print(f"Final Count Returned   : {len(final_companies)}")
     print(f"==================== [DISCOVERY END] ====================\n")
 
