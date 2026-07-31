@@ -760,15 +760,33 @@ export default function DiscoverPage() {
     }
 
     try {
-      const params = new URLSearchParams({
+      const payload = {
         keyword: keyword.trim(),
         country,
         city: city.trim(),
-        minTrustScore: String(minTrust),
-        pageno: String(nextPage),
-        ...(forceReset ? { clearCache: 'true' } : {}),
+        minTrustScore: minTrust,
+        pageno: nextPage,
+        ...(forceReset ? { clearCache: true, resetCursor: true } : {}),
+      };
+
+      let res = await fetch('/api/discover-companies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
-      const res = await fetch(`/api/discover-companies?${params}`);
+
+      if (!res.ok && (res.status === 405 || res.status === 404)) {
+        const params = new URLSearchParams({
+          keyword: keyword.trim(),
+          country,
+          city: city.trim(),
+          minTrustScore: String(minTrust),
+          pageno: String(nextPage),
+          ...(forceReset ? { clearCache: 'true' } : {}),
+        });
+        res = await fetch(`/api/discover-companies?${params}`);
+      }
+
       const data = await res.json();
 
       if (!res.ok) {
