@@ -16,7 +16,10 @@ const BACKEND_URL =
 async function proxyToBackend(body: object): Promise<NextResponse> {
   const resp = await fetch(`${BACKEND_URL}/discover-companies`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(120_000), // 2 min timeout
   });
@@ -53,7 +56,10 @@ export async function GET(req: NextRequest) {
 
     const resp = await fetch(`${BACKEND_URL}/discover-companies?${query.toString()}`, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+      },
       signal: AbortSignal.timeout(120_000),
     });
 
