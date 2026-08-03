@@ -40,6 +40,17 @@ yarn-error.log*
 # vercel
 .vercel
 
+# python & virtual environments
+.venv/
+/backend/build/
+/backend/dist/
+__pycache__/
+*.pyc
+
+# nested worktrees / subfolders
+/clientplus-ai/
+/clientplus-ai.worktrees/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
