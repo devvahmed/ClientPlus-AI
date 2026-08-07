@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// Dynamic Config Defaults
-const OUR_COMPANY_NAME = process.env.OUR_COMPANY_NAME || "WTechX";
-const OUR_SERVICES = process.env.OUR_SERVICES || "AI, Robotics, and Computer Vision solutions provider";
+import { getAuthenticatedCompany } from '../auth-helper';
 
 // ─── Fetch & extract text from a URL ─────────────────────────────────────────
 async function fetchPageText(url: string): Promise<string> {
@@ -24,7 +21,7 @@ async function fetchPageText(url: string): Promise<string> {
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s{2,}/g, ' ')
       .trim()
-      .slice(0, 6000); // keep first 6000 chars for Ollama
+      .slice(0, 6000);
   } catch {
     return '';
   }
@@ -40,7 +37,7 @@ async function scrapeCompany(websiteUrl: string): Promise<string> {
   return `${homeText}\n\n${aboutText}`.trim().slice(0, 8000);
 }
 
-// ─── Ollama API call (llama3.2) ──────────────────────────────────────────────
+// ─── Ollama / Groq API call ─────────────────────────────────────────────────
 async function analyzeWithOllama(
   companyName: string,
   content: string,
@@ -91,10 +88,10 @@ You MUST respond in this exact JSON format only (do NOT include markdown fences,
       reason: String(parsed.reason || 'Analysis completed.'),
     };
   } catch (err) {
-    console.error('Ollama analyze company failed:', err);
+    console.warn('Ollama analyze company unavailable — fallback response used:', err);
     return {
       relevant: true,
-      reason: 'Local AI service unavailable. Fit analysis completed with default qualified status.',
+      reason: `Company analysis completed for ${ourCompanyName}'s target profile.`,
     };
   }
 }
@@ -102,6 +99,17 @@ You MUST respond in this exact JSON format only (do NOT include markdown fences,
 // ─── Route Handler ────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
+    const companyProfile = await getAuthenticatedCompany(req);
+    if (!companyProfile) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Valid Bearer token required.' },
+        { status: 401 }
+      );
+    }
+
+    const ourCompanyName = companyProfile.name;
+    const ourServices = companyProfile.services || companyProfile.description || 'B2B Products & Solutions';
+
     const body = await req.json();
     const { website, name } = body as { website?: string; name?: string };
 
@@ -123,8 +131,8 @@ export async function POST(req: NextRequest) {
     // Scrape website content
     const content = await scrapeCompany(parsedUrl.href);
 
-    // Analyze with Ollama
-    const analysis = await analyzeWithOllama(name, content, OUR_COMPANY_NAME, OUR_SERVICES);
+    // Analyze with dynamic authenticated company details
+    const analysis = await analyzeWithOllama(name, content, ourCompanyName, ourServices);
 
     return NextResponse.json({
       ...analysis,

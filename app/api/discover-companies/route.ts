@@ -8,21 +8,51 @@ export const revalidate = 0;
 // The heavy discovery loop runs in FastAPI with no timeout limit.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  process.env.BACKEND_URL ||
-  'http://localhost:8000';
+function getBackendUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL;
+  if (!envUrl || envUrl.startsWith('/')) {
+    return 'http://localhost:8000';
+  }
+  return envUrl.replace(/\/$/, '');
+}
 
-async function proxyToBackend(body: object): Promise<NextResponse> {
-  const resp = await fetch(`${BACKEND_URL}/discover-companies`, {
+async function proxyToBackend(body: object, authHeader?: string | null): Promise<NextResponse> {
+  const backendUrl = getBackendUrl();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
+  };
+  if (authHeader) {
+    headers['Authorization'] = authHeader;
+  }
+
+  const resp = await fetch(`${backendUrl}/discover-companies`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': 'true',
-    },
+    headers,
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(120_000), // 2 min timeout
   });
+
+  if (!resp.ok) {
+    let errorData = { error: 'Discovery backend failed.' };
+    try {
+      errorData = await resp.json();
+    } catch {
+      /* fallback */
+    }
+    return NextResponse.json(errorData, { status: resp.status });
+  }
+
+  const contentType = resp.headers.get('content-type') || '';
+  if (contentType.includes('ndjson') || contentType.includes('stream')) {
+    return new NextResponse(resp.body, {
+      status: resp.status,
+      headers: {
+        'Content-Type': 'application/x-ndjson',
+        'Cache-Control': 'no-store, max-age=0, must-revalidate',
+      },
+    });
+  }
 
   const data = await resp.json();
   const res = NextResponse.json(data, { status: resp.status });
@@ -39,6 +69,7 @@ export async function GET(req: NextRequest) {
   const minTrustScore = searchParams.get('minTrustScore');
   const pageno = searchParams.get('pageno');
   const resetCursor = searchParams.get('resetCursor') === 'true' || searchParams.get('clearCache') === 'true';
+  const authHeader = req.headers.get('authorization');
 
   if (!keyword) {
     return NextResponse.json({ error: 'Keyword is required.' }, { status: 400 });
@@ -54,12 +85,17 @@ export async function GET(req: NextRequest) {
       ...(resetCursor ? { reset_cursor: 'true' } : {}),
     });
 
-    const resp = await fetch(`${BACKEND_URL}/discover-companies?${query.toString()}`, {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    };
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+
+    const resp = await fetch(`${getBackendUrl()}/discover-companies?${query.toString()}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
-      },
+      headers,
       signal: AbortSignal.timeout(120_000),
     });
 
@@ -71,6 +107,27 @@ export async function GET(req: NextRequest) {
         minTrustScore: minTrustScore ? Number(minTrustScore) : undefined,
         pageno: pageno ? Number(pageno) : undefined,
         reset_cursor: resetCursor,
+      }, authHeader);
+    }
+
+    if (!resp.ok) {
+      let errorData = { error: 'Discovery failed.' };
+      try {
+        errorData = await resp.json();
+      } catch {
+        /* fallback */
+      }
+      return NextResponse.json(errorData, { status: resp.status });
+    }
+
+    const contentType = resp.headers.get('content-type') || '';
+    if (contentType.includes('ndjson') || contentType.includes('stream')) {
+      return new NextResponse(resp.body, {
+        status: resp.status,
+        headers: {
+          'Content-Type': 'application/x-ndjson',
+          'Cache-Control': 'no-store, max-age=0, must-revalidate',
+        },
       });
     }
 
@@ -88,7 +145,7 @@ export async function GET(req: NextRequest) {
       minTrustScore: minTrustScore ? Number(minTrustScore) : undefined,
       pageno: pageno ? Number(pageno) : undefined,
       reset_cursor: resetCursor,
-    });
+    }, authHeader);
   }
 }
 
@@ -96,6 +153,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const keyword = body.keyword?.trim() || '';
+    const authHeader = req.headers.get('authorization');
 
     if (!keyword) {
       return NextResponse.json({ error: 'Keyword is required.' }, { status: 400 });
@@ -111,7 +169,7 @@ export async function POST(req: NextRequest) {
       reset_cursor: Boolean(body.resetCursor || body.clearCache || body.reset_cursor),
       our_company: body.our_company,
       our_services: body.our_services,
-    });
+    }, authHeader);
   } catch (err) {
     console.error('[POST Proxy] Fatal:', err);
     return NextResponse.json({ error: 'Discovery failed.' }, { status: 500 });

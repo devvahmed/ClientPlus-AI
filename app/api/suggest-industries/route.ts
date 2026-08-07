@@ -1,6 +1,61 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(request: Request) {
+function getBackendUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL;
+  if (!envUrl || envUrl.startsWith('/')) {
+    return 'http://localhost:8000';
+  }
+  return envUrl.replace(/\/$/, '');
+}
+
+// ─── GET /api/suggest-industries (Profile-Aware Quick Tags for Authenticated Company) ───
+export async function GET(req: NextRequest) {
+  const defaultFallback = ["Fintech", "Healthcare", "E-Commerce & Retail", "Software & SaaS", "Logistics & Supply Chain", "Industrial Manufacturing"];
+
+  try {
+    const authHeader = req.headers.get('Authorization') || req.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json({
+        success: true,
+        suggested_industries: defaultFallback,
+      });
+    }
+
+    const backendUrl = `${getBackendUrl()}/auth/suggest-industries`;
+    const resp = await fetch(backendUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    });
+
+    if (!resp.ok) {
+      console.warn(`[Suggest Industries GET Proxy] Backend returned status ${resp.status}`);
+      return NextResponse.json({
+        success: true,
+        suggested_industries: defaultFallback,
+      });
+    }
+
+    const data = await resp.json();
+    return NextResponse.json({
+      success: true,
+      company_name: data.company_name,
+      suggested_industries: data.suggested_industries || defaultFallback,
+    });
+  } catch (err) {
+    console.error('[Suggest Industries GET Proxy Error]:', err);
+    return NextResponse.json({
+      success: true,
+      suggested_industries: defaultFallback,
+    });
+  }
+}
+
+// ─── POST /api/suggest-industries (Typed Keyword / Service Target Industry Suggestions) ───
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const service = (body.service || body.input || '').toString().trim();
@@ -20,7 +75,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const prompt = `We offer this technology/service: '${service}'. Suggest 5-8 real-world industries where companies would genuinely need this technology, with a one-line reason for each. Focus on industries where this creates clear business value, not generic tech-industry connections. Return as JSON: [{"industry": "", "reason": ""}]`;
+    const prompt = `We offer this technology/service: '${service}'. Suggest 5-8 real-world industries where companies would genuinely need this technology, with a one-line reason for each. Focus on industries where this creates clear business value. Return as JSON: [{"industry": "", "reason": ""}]`;
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -48,8 +103,6 @@ export async function POST(request: Request) {
 
     const data = await response.json();
     let rawContent = data.choices?.[0]?.message?.content || '';
-
-    // Strip Markdown code blocks if present
     rawContent = rawContent.replace(/```json/gi, '').replace(/```/g, '').trim();
 
     let suggestions: Array<{ industry: string; reason: string }> = [];
@@ -59,20 +112,16 @@ export async function POST(request: Request) {
       if (Array.isArray(parsed)) {
         suggestions = parsed;
       } else if (typeof parsed === 'object' && parsed !== null) {
-        // If LLM wrapped array in an object key like { "industries": [...] } or { "suggestions": [...] }
         const possibleArray = Object.values(parsed).find((val) => Array.isArray(val));
         if (possibleArray && Array.isArray(possibleArray)) {
           suggestions = possibleArray as Array<{ industry: string; reason: string }>;
         }
       }
-    } catch (parseErr) {
-      console.warn('[Suggest Industries] Failed to JSON.parse LLM output directly:', rawContent);
-      // Fallback regex extraction for {"industry": "...", "reason": "..."}
+    } catch {
       const matches = [...rawContent.matchAll(/\{\s*"industry"\s*:\s*"([^"]+)"\s*,\s*"reason"\s*:\s*"([^"]+)"\s*\}/gi)];
       suggestions = matches.map((m) => ({ industry: m[1], reason: m[2] }));
     }
 
-    // Clean suggestions to ensure valid structure
     const cleanedSuggestions = suggestions
       .filter((item) => item && typeof item.industry === 'string' && item.industry.trim().length > 0)
       .map((item) => ({
@@ -86,7 +135,7 @@ export async function POST(request: Request) {
       suggestions: cleanedSuggestions,
     });
   } catch (error) {
-    console.error('[Suggest Industries] Server error:', error);
+    console.error('[Suggest Industries POST Error]:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'An unexpected server error occurred.' },
       { status: 500 }

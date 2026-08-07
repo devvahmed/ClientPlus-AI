@@ -4,6 +4,8 @@ import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import CountryCitySelector from '@/components/CountryCitySelector';
+import { getAuthToken } from '@/lib/auth';
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ContactSource {
@@ -13,7 +15,7 @@ export interface ContactSource {
   context?: string;
 }
 
-interface Company {
+export interface Company {
   id: string;
   name: string;
   website: string;
@@ -292,7 +294,7 @@ function AnalysisModal({
 function CompanyCard({
   company, index, onAnalyze, onSave,
 }: {
-  company: Company; index: number; onAnalyze: (c: Company) => void; onSave: (c: Company) => void;
+  company: any; index: number; onAnalyze: (c: any) => void; onSave: (c: any) => void;
 }) {
   return (
     <motion.div
@@ -324,7 +326,7 @@ function CompanyCard({
         </div>
         <div className="flex flex-col items-end gap-1.5 shrink-0 ml-2">
           <span className={`px-2 py-1 rounded-lg text-[11px] font-semibold ${fitBadgeColor[company.trustStatus] ?? fitBadgeColor['Neutral']}`}>
-            {company.matchConfidence !== undefined ? `${company.matchConfidence}% Match` : (company.trustStatus || 'High Fit')}
+            {(company as any).matchConfidence !== undefined ? `${(company as any).matchConfidence}% Match` : (company.trustStatus || 'High Fit')}
           </span>
           {company.matchedService && (
             <span className="px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/70 flex items-center gap-1">
@@ -553,6 +555,36 @@ export default function DiscoverPage() {
   const [suggestions, setSuggestions] = useState<IndustrySuggestion[]>([]);
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
 
+  // Profile-aware Quick Target Industry Tags state
+  const [quickTags, setQuickTags] = useState<string[]>([]);
+  const [quickTagsLoading, setQuickTagsLoading] = useState(true);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchQuickTags = async () => {
+      setQuickTagsLoading(true);
+      try {
+        const token = getAuthToken();
+        const res = await fetch('/api/suggest-industries', {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        });
+        const data = await res.json();
+        if (data.suggested_industries && data.suggested_industries.length > 0) {
+          setQuickTags(data.suggested_industries);
+        }
+        if (data.company_name) {
+          setCompanyName(data.company_name);
+        }
+      } catch (err) {
+        console.warn('[Quick Tags Fetch Error]:', err);
+      } finally {
+        setQuickTagsLoading(false);
+      }
+    };
+
+    fetchQuickTags();
+  }, []);
+
   const handleSuggestIndustries = useCallback(async () => {
     const input = suggestInput.trim();
     if (!input) return;
@@ -780,9 +812,13 @@ export default function DiscoverPage() {
         ...(forceReset ? { clearCache: true, resetCursor: true } : {}),
       };
 
+      const token = getAuthToken();
       const res = await fetch('/api/discover-companies', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(payload),
       });
 
@@ -827,7 +863,7 @@ export default function DiscoverPage() {
                 const { type: _t, ...company } = event;
                 const c = company as Company;
                 // Client-side filter: confidence gate
-                if ((c.matchConfidence ?? c.trustScore ?? 0) < (minTrust || 0)) continue;
+                if (((c as any).matchConfidence ?? c.trustScore ?? 0) < (minTrust || 0)) continue;
                 accumulated.push(c);
                 setCompanies([...accumulated]);
                 setStreamProgress(prev => prev ? { ...prev, found: accumulated.length } : null);
@@ -861,10 +897,10 @@ export default function DiscoverPage() {
           rawCompanies = data.results;
         }
         const qualifiedOnly = rawCompanies.filter(
-          (c) => c.trustStatus !== 'Pending Review' && ((c.matchConfidence ?? c.trustScore ?? 0) > 0)
+          (c) => c.trustStatus !== 'Pending Review' && (((c as any).matchConfidence ?? c.trustScore ?? 0) > 0)
         );
         const newCompanies = minTrust > 0
-          ? qualifiedOnly.filter((c) => (c.matchConfidence ?? c.trustScore ?? 0) >= minTrust)
+          ? qualifiedOnly.filter((c) => ((c as any).matchConfidence ?? c.trustScore ?? 0) >= minTrust)
           : qualifiedOnly;
 
         setCompanies(newCompanies);
@@ -893,9 +929,13 @@ export default function DiscoverPage() {
     setActiveCompany(company);
     setAnalysis({ loading: true, relevant: false, reason: '' });
     try {
+      const token = getAuthToken();
       const res = await fetch('/api/analyze-company', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ website: company.website, name: company.name }),
       });
       const data = await res.json();
@@ -1144,6 +1184,52 @@ export default function DiscoverPage() {
               placeholder="e.g. Fintech, Healthcare, SaaS, Manufacturing..."
               className="w-full h-10 px-3 py-2 bg-surface border border-outline-variant rounded-xl text-[14px] text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
             />
+            {/* Dynamic Quick Target Industry Tags */}
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-secondary flex items-center gap-1 mr-1">
+                <span className="material-symbols-outlined text-[13px] text-primary">auto_awesome</span>
+                Suggested for {companyName || 'you'}:
+              </span>
+              {quickTagsLoading ? (
+                <div className="flex gap-1.5">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-6 w-16 bg-surface-container-high rounded-full animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                quickTags.map((tag) => {
+                  const isSelected = keyword.toLowerCase().includes(tag.toLowerCase());
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          const cleaned = keyword
+                            .replace(new RegExp(tag, 'gi'), '')
+                            .replace(/,\s*,/g, ',')
+                            .replace(/^,\s*|\s*,\s*$/g, '')
+                            .trim();
+                          setKeyword(cleaned);
+                        } else {
+                          setKeyword((prev) => (prev ? `${prev}, ${tag}` : tag));
+                        }
+                      }}
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-all border flex items-center gap-1 cursor-pointer ${
+                        isSelected
+                          ? 'bg-primary text-white border-primary shadow-sm'
+                          : 'bg-surface-container-low border-outline-variant text-on-surface hover:border-primary/50 hover:bg-surface-container'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[12px]">
+                        {isSelected ? 'check' : 'add'}
+                      </span>
+                      {tag}
+                    </button>
+                  );
+                })
+              )}
+            </div>
           </div>
           {/* Country & Optional Region/City Dropdown */}
           <CountryCitySelector

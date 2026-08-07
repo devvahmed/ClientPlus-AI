@@ -42,6 +42,13 @@ OUR_VALUE_PROP   = os.getenv("OUR_VALUE_PROPOSITION", "an intelligent CRM and le
 app = FastAPI(title="WTechX Leads & Email Outreach API")
 database.init_db()
 
+# ─── Auth Router Integration ──────────────────────────────────────────────────
+from auth_models import init_auth_db
+from auth_routes import router as auth_router
+init_auth_db()
+app.include_router(auth_router)
+
+
 # ─── Pydantic Schemas ──────────────────────────────────────────────────────────
 class OutreachRequest(BaseModel):
     company_name: str

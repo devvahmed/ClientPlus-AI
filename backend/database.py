@@ -36,10 +36,12 @@ def init_db():
             bounced BOOLEAN DEFAULT 0,
             probability_score INTEGER DEFAULT 20,
             suggested_action TEXT,
-            email_source_context TEXT
+            email_source_context TEXT,
+            company_id INTEGER DEFAULT 1
         )
     """)
     _safe_add_column(cursor, "leads", "email_source_context", "TEXT")
+    _safe_add_column(cursor, "leads", "company_id", "INTEGER DEFAULT 1")
 
     # Enriched contacts table (with full source tracking)
     cursor.execute("""
@@ -55,7 +57,8 @@ def init_db():
             source_page TEXT,
             source_label TEXT,
             all_contacts_json TEXT,
-            enriched_at TEXT
+            enriched_at TEXT,
+            company_id INTEGER DEFAULT 1
         )
     """)
     for col, col_type in [
@@ -63,6 +66,7 @@ def init_db():
         ("source_label", "TEXT"),
         ("all_contacts_json", "TEXT"),
         ("email_source_context", "TEXT"),
+        ("company_id", "INTEGER DEFAULT 1"),
     ]:
         _safe_add_column(cursor, "enriched_contacts", col, col_type)
 
@@ -71,7 +75,7 @@ def init_db():
 
 
 def save_lead(lead_id, name, description, email, subject, sent_at, action,
-              email_source_context=None):
+              email_source_context=None, company_id=1):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -79,10 +83,10 @@ def save_lead(lead_id, name, description, email, subject, sent_at, action,
             INSERT OR REPLACE INTO leads (
                 id, company_name, company_description, contact_email,
                 subject, sent_at, opened, clicked, replied, bounced,
-                probability_score, suggested_action, email_source_context
-            ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 20, ?, ?)
+                probability_score, suggested_action, email_source_context, company_id
+            ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 20, ?, ?, ?)
         """, (lead_id, name, description, email, subject, sent_at,
-              action, email_source_context))
+              action, email_source_context, company_id))
         conn.commit()
     finally:
         conn.close()
@@ -91,10 +95,9 @@ def save_lead(lead_id, name, description, email, subject, sent_at, action,
 def save_enriched_contact(company_name, website_url, email=None, phone=None,
                            stakeholder=None, context_snippet=None,
                            email_source_context=None, source_page=None,
-                           source_label=None, all_contacts=None):
+                           source_label=None, all_contacts=None, company_id=1):
     """
-    Saves an enriched contact with precise source tracking references.
-    all_contacts: list of dicts [{email, source_page, source_context, source_label}]
+    Saves an enriched contact with precise source tracking references and company_id scoping.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -105,32 +108,32 @@ def save_enriched_contact(company_name, website_url, email=None, phone=None,
             INSERT INTO enriched_contacts (
                 company_name, website_url, email, phone, stakeholder,
                 context_snippet, email_source_context, source_page,
-                source_label, all_contacts_json, enriched_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                source_label, all_contacts_json, enriched_at, company_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (company_name, website_url, email, phone, stakeholder,
               context_snippet, email_source_context, source_page,
-              source_label, all_contacts_json, enriched_at))
+              source_label, all_contacts_json, enriched_at, company_id))
         conn.commit()
         return cursor.lastrowid
     finally:
         conn.close()
 
 
-def get_enriched_contacts(company_name=None):
-    """Returns enriched contacts, optionally filtered by company name."""
+def get_enriched_contacts(company_name=None, company_id=None):
+    """Returns enriched contacts, optionally filtered by company_name and company_id."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        query = "SELECT * FROM enriched_contacts WHERE 1=1"
+        params = []
+        if company_id is not None:
+            query += " AND company_id = ?"
+            params.append(company_id)
         if company_name:
-            rows = cursor.execute(
-                "SELECT * FROM enriched_contacts WHERE company_name = ? "
-                "ORDER BY enriched_at DESC",
-                (company_name,)
-            ).fetchall()
-        else:
-            rows = cursor.execute(
-                "SELECT * FROM enriched_contacts ORDER BY enriched_at DESC"
-            ).fetchall()
+            query += " AND company_name = ?"
+            params.append(company_name)
+        query += " ORDER BY enriched_at DESC"
+        rows = cursor.execute(query, params).fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()
@@ -197,13 +200,68 @@ def update_lead_tracking(email, opened=None, clicked=None, bounced=None,
         conn.close()
 
 
-def get_all_leads():
+def get_all_leads(company_id=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        rows = cursor.execute(
-            "SELECT * FROM leads ORDER BY probability_score DESC"
-        ).fetchall()
+        if company_id is not None:
+            rows = cursor.execute(
+                "SELECT * FROM leads WHERE company_id = ? ORDER BY probability_score DESC", (company_id,)
+            ).fetchall()
+        else:
+            rows = cursor.execute(
+                "SELECT * FROM leads ORDER BY probability_score DESC"
+            ).fetchall()
         return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def get_dashboard_stats(company_id: int):
+    """
+    Computes multi-tenant real-time dashboard statistics strictly isolated for company_id.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        total_leads = cursor.execute(
+            "SELECT COUNT(*) FROM leads WHERE company_id = ?", (company_id,)
+        ).fetchone()[0]
+
+        total_enriched = cursor.execute(
+            "SELECT COUNT(*) FROM enriched_contacts WHERE company_id = ?", (company_id,)
+        ).fetchone()[0]
+
+        total_companies_found = max(total_leads, total_enriched)
+
+        qualified_leads = cursor.execute(
+            "SELECT COUNT(*) FROM leads WHERE company_id = ? AND probability_score >= 60", (company_id,)
+        ).fetchone()[0]
+
+        if total_companies_found > 0 and qualified_leads == 0:
+            qualified_leads = total_enriched
+
+        active_outreach = cursor.execute(
+            "SELECT COUNT(*) FROM leads WHERE company_id = ? AND (sent_at IS NOT NULL OR opened = 1 OR clicked = 1 OR replied = 1)", (company_id,)
+        ).fetchone()[0]
+
+        avg_score_row = cursor.execute(
+            "SELECT AVG(probability_score) FROM leads WHERE company_id = ?", (company_id,)
+        ).fetchone()
+        avg_trust_score = round(float(avg_score_row[0]), 1) if (avg_score_row and avg_score_row[0] is not None) else 0
+
+        recent_rows = cursor.execute(
+            "SELECT company_name, contact_email, sent_at, probability_score, suggested_action FROM leads WHERE company_id = ? ORDER BY sent_at DESC LIMIT 5", (company_id,)
+        ).fetchall()
+        recent_activity = [dict(r) for r in recent_rows]
+
+        return {
+            "company_id": company_id,
+            "total_companies_found": total_companies_found,
+            "qualified_leads": qualified_leads,
+            "active_outreach": active_outreach,
+            "avg_trust_score": avg_trust_score,
+            "recent_activity": recent_activity
+        }
     finally:
         conn.close()

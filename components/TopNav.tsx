@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getSavedCompany, clearAuth, CompanyProfile } from '@/lib/auth';
 
 interface TopNavProps {
   onMenuClick: () => void;
@@ -11,6 +12,21 @@ interface TopNavProps {
 export default function TopNav({ onMenuClick, placeholder = 'Search companies, clients...' }: TopNavProps) {
   const [focused, setFocused] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [company, setCompany] = useState<CompanyProfile | null>(null);
+
+  useEffect(() => {
+    const saved = getSavedCompany();
+    if (saved) {
+      setCompany(saved);
+    }
+  }, []);
+
+  const getInitials = (name?: string) => {
+    if (!name) return 'CP';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  };
 
   return (
     <header className="bg-white border-b border-outline-variant shadow-sm fixed top-0 right-0 w-full md:w-[calc(100%-280px)] h-16 z-30 flex items-center px-6">
@@ -48,8 +64,8 @@ export default function TopNav({ onMenuClick, placeholder = 'Search companies, c
           </motion.div>
         </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+        {/* Right: Actions & User Info */}
+        <div className="flex items-center gap-3">
           {/* Notifications */}
           <div className="relative">
             <motion.button
@@ -101,23 +117,27 @@ export default function TopNav({ onMenuClick, placeholder = 'Search companies, c
             </AnimatePresence>
           </div>
 
-          {/* Help */}
+          {/* Company Badge & Avatar */}
+          <div className="flex items-center gap-2 bg-surface-container-low border border-outline-variant px-3 py-1.5 rounded-2xl">
+            <div className="w-7 h-7 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-xs shadow-sm">
+              {getInitials(company?.name)}
+            </div>
+            <div className="hidden sm:block text-left pr-1">
+              <p className="text-xs font-semibold text-on-surface truncate max-w-[120px]">{company?.name || 'Company'}</p>
+              <p className="text-[10px] text-secondary truncate max-w-[120px]">{company?.email || 'Logged in'}</p>
+            </div>
+          </div>
+
+          {/* Logout Button */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="p-2 text-secondary hover:text-primary hover:bg-surface-container-low rounded-xl transition-all"
+            onClick={clearAuth}
+            title="Sign Out"
+            className="p-2 text-error/80 hover:text-error hover:bg-error/10 rounded-xl transition-all flex items-center justify-center cursor-pointer"
           >
-            <span className="material-symbols-outlined">help</span>
+            <span className="material-symbols-outlined text-[20px]">logout</span>
           </motion.button>
-
-          {/* Avatar */}
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="w-8 h-8 rounded-full bg-primary-container border border-outline-variant cursor-pointer flex items-center justify-center text-primary font-bold text-sm overflow-hidden"
-          >
-            AM
-          </motion.div>
         </div>
       </div>
     </header>

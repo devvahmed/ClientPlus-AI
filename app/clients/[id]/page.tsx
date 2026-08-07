@@ -3,6 +3,8 @@
 import { useState, useEffect, use, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { getAuthToken } from '@/lib/auth';
+
 
 interface Client {
   id: string;
@@ -227,9 +229,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     setEmailCopied(false);
 
     try {
+      const token = getAuthToken();
       const res = await fetch('/api/generate-outreach-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           company_name: client.name,
           industry: client.industry,
@@ -269,9 +275,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     setEmailCopied(false);
 
     try {
+      const token = getAuthToken();
       const res = await fetch('/api/generate-outreach-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           company_name: client.name,
           industry: client.industry,
@@ -312,9 +322,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     setNegotiationError(null);
 
     try {
+      const token = getAuthToken();
       const res = await fetch('/api/analyze-negotiation', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           company_name: client.name,
           industry: client.industry,
