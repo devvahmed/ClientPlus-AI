@@ -36,10 +36,14 @@ def main():
         script_path = os.path.join(backend_dir, "email_outreach.py")
         backend_process = subprocess.Popen([python_exe, script_path], cwd=backend_dir)
 
-    # 2. Start Next.js Production Web Server on Port 3000
+    # 2. Start Next.js Web Server on Port 3000
     next_dir = os.path.join(root_dir, "clientplus-ai")
+    if not os.path.isdir(next_dir):
+        next_dir = root_dir
+        
     print(f"[Launcher] Starting Next.js web app from {next_dir}...")
-    next_process = subprocess.Popen("npm.cmd run start", cwd=next_dir, shell=True)
+    next_cmd = "npm.cmd run start" if os.path.exists(os.path.join(next_dir, ".next", "BUILD_ID")) else "npm.cmd run dev"
+    next_process = subprocess.Popen(next_cmd, cwd=next_dir, shell=True)
 
     # Wait 4 seconds for servers to initialize
     print("[Launcher] Waiting for services to initialize...")
